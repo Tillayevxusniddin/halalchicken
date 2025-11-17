@@ -1,0 +1,359 @@
+export const translations = {
+  uz: {
+    // Navigation
+    nav_home: 'Bosh sahifa',
+    nav_products: 'Mahsulotlar',
+    nav_cart: 'Savat',
+    nav_orders: 'Buyurtmalar',
+    nav_admin: 'Admin',
+    products: 'Mahsulotlar',
+    orders: 'Buyurtmalar',
+    dashboard: 'Boshqaruv Paneli',
+    logout: 'Chiqish',
+    login: 'Kirish',
+    signup: "Ro'yxatdan o'tish",
+    home: 'Bosh sahifa',
+    cart: 'Savat',
+    profile: 'Profil',
+
+    // Footer
+    footer_description: 'Sifatli halol tovuq mahsulotlari yetkazib beruvchisi',
+    quick_links: 'Tezkor havolalar',
+    contact: 'Aloqa',
+    follow_us: 'Ijtimoiy tarmoqlar',
+    address: 'Toshkent shahri, Chilonzor tumani',
+    all_rights_reserved: 'Barcha huquqlar himoyalangan',
+    privacy_policy: 'Maxfiylik siyosati',
+    terms_of_service: 'Foydalanish shartlari',
+
+    // Landing Page
+    orderFresh: 'Yangi Mahsulot Buyurtma Qiling',
+    negotiateFair: 'Adolatli Narxlarni Muhokama Qiling',
+    halalChickenDesc:
+      "Ishonchli ta'minotchilardan to'g'ridan-to'g'ri halol tovuq mahsulotlari. Sifat va halollik kafolati.",
+    browseProducts: "Mahsulotlarni Ko'rish",
+    contactWhatsApp: "WhatsApp orqali bog'lanish",
+
+    // Trust Section
+    whyChoose: "Nega Halal Chicken'ni Tanlash Kerak?",
+    halalCertified: '100% Halol Sertifikatlangan',
+    halalDescription:
+      "Barcha mahsulotlar to'liq kuzatuv va hujjatlar bilan halol sertifikatlangan.",
+    directFarm: "To'g'ridan-to'g'ri Ferma",
+    directDescription:
+      "Ishonchli ta'minotchilardan yangi mahsulot, sifat va asl manbadan.",
+    trustedPartners: 'Ishonchli Hamkorlar',
+    trustedDescription:
+      "Shaffoflik va o'zaro hurmatga asoslangan uzoq muddatli munosabatlar.",
+
+    // Testimonials
+    whatCustomersSay: 'Mijozlarimiz Fikri',
+    fromAll:
+      'Butun mintaqadagi restoranlar, korxonalar va oilalarning ishonchi',
+
+    // Products
+    allCategories: 'Barcha toifalar',
+    allSuppliers: "Barcha ta'minotchilar",
+    searchProducts: 'Mahsulotlarni qidirish...',
+    addToCart: "Savatga qo'shish",
+    inStock: 'Mavjud',
+    outOfStock: 'Mavjud emas',
+    kg: 'kg',
+    quantity: 'Miqdor',
+
+    // Cart
+    shoppingCart: 'Xarid Savati',
+    cartEmpty: "Savatingiz bo'sh",
+    continueShopping: 'Xaridni Davom Ettirish',
+    orderSummary: 'Buyurtma Xulosasi',
+    totalItems: 'Jami Mahsulotlar',
+    totalWeight: 'Jami vazn',
+    placeOrder: 'Buyurtma Berish',
+    remove: "O'chirish",
+    orderPlaced: 'Buyurtma qabul qilindi!',
+    orderSuccess: 'Sizning buyurtmangiz muvaffaqiyatli qabul qilindi.',
+    orderNumber: 'Buyurtma raqami',
+    contactMessageIntro:
+      "Assalomu alaykum! Buyurtmangiz bo'yicha Telegram xabari tayyor. Admin bilan shu orqali bog'laning.",
+    contactViaTelegram: "Telegram orqali bog'lanish",
+    placeOrderToContact: "Telegram xabarini olish uchun avval buyurtma yarating.",
+
+    // Orders
+    orderHistory: 'Buyurtmalar Tarixi',
+    noOrders: "Hali buyurtmalaringiz yo'q",
+    noProducts: 'Mahsulotlar topilmadi',
+    startShopping: 'Xarid qilishni boshlash',
+    reorder: 'Qayta buyurtma',
+    orderDetails: 'Buyurtma tafsilotlari',
+    status: 'Holat',
+    date: 'Sana',
+    items: 'Mahsulotlar',
+
+    // Order Status
+    Received: 'Qabul qilindi',
+    Confirmed: 'Tasdiqlandi',
+    Shipped: 'Jo‘natildi',
+
+    // Auth
+    email: 'Email',
+    password: 'Parol',
+    name: 'Ism',
+    phone: 'Telefon',
+    address_field: 'Manzil',
+    isRequired: 'talab qilinadi',
+    dontHaveAccount: "Hisobingiz yo'qmi?",
+    alreadyHaveAccount: 'Hisobingiz bormi?',
+    individual: 'Jismoniy shaxs',
+    business: 'Yuridik shaxs',
+    legalEntity: 'Yuridik shaxs',
+    companyName: 'Kompaniya nomi',
+    inn: 'INN',
+    bankDetails: 'Bank rekvizitlari',
+    legalAddress: 'Yuridik manzil',
+    responsiblePerson: "Mas'ul shaxs",
+
+    // Admin
+    adminDashboard: 'Admin Paneli',
+    statistics: 'Statistika',
+    todayOrders: 'Bugungi buyurtmalar',
+    newOrders: 'Yangi buyurtmalar',
+    totalProducts: 'Jami mahsulotlar',
+    totalCustomers: 'Jami mijozlar',
+    allOrders: 'Barcha buyurtmalar',
+    customer: 'Mijoz',
+    contactCustomer: "Mijoz bilan bog'lanish",
+    actions: 'Amallar',
+    changeStatus: "Holatni o'zgartirish",
+    viewDetails: "Tafsilotlarni ko'rish",
+    userManagement: 'Foydalanuvchilarni boshqarish',
+    allUsers: 'Barcha foydalanuvchilar',
+    changeRole: "Rolni o'zgartirish",
+    exportOrders: 'Buyurtmalarni eksport qilish',
+    importProducts: 'Mahsulotlarni import qilish',
+    exporting: 'Eksport qilinmoqda...',
+    importing: 'Import qilinmoqda...',
+    downloadReady: 'Yuklash tayyor',
+    download: 'Yuklash',
+    selectFile: 'Fayl tanlang',
+    uploadFile: 'Faylni yuklash',
+    jobPending: 'Navbatda',
+    jobRunning: 'Bajarilmoqda',
+    jobSuccess: 'Muvaffaqiyatli',
+    jobFailed: 'Xatolik',
+    downloadTemplate: 'Shablonni yuklab olish',
+    importInstructions: 'Faylda quyidagi ustunlar bo‘lishi kerak:',
+    importMaxSize: 'Maksimal fayl hajmi 10 MB.',
+    CUSTOMER: 'Mijoz',
+    ADMIN: 'Admin',
+    SUPERADMIN: 'SuperAdmin',
+    roleChangedSuccess: 'Rol muvaffaqiyatli o\'zgartirildi',
+    roleChangeFailed: 'Rolni o\'zgartirishda xatolik yuz berdi',
+    currentUser: 'Siz',
+
+    // Common
+    close: 'Yopish',
+    save: 'Saqlash',
+    cancel: 'Bekor qilish',
+    edit: 'Tahrirlash',
+    delete: "O'chirish",
+    search: 'Qidirish',
+    filter: 'Filtrlash',
+    loading: 'Yuklanmoqda...',
+    error: 'Xatolik',
+    success: 'Muvaffaqiyat',
+    pleaseLogin: 'Iltimos, tizimga kiring',
+    noPricesShown: 'Narxlar WhatsApp orqali muhokama qilinadi',
+    personalInfo: "Shaxsiy ma'lumotlar",
+    accessDenied: "Ruxsat yo'q. Faqat adminlar kirishi mumkin.",
+    accountInfo: "Hisob ma'lumotlari",
+    userType: 'Foydalanuvchi turi',
+    role: 'Rol',
+    legal_entity: 'Yuridik shaxs',
+    statusFilter: 'Status bo‘yicha filtr',
+    allStatuses: 'Barcha statuslar',
+  },
+  ru: {
+    // Navigation
+    nav_home: 'Главная',
+    nav_products: 'Товары',
+    nav_cart: 'Корзина',
+    nav_orders: 'Заказы',
+    nav_admin: 'Админ',
+    products: 'Товары',
+    orders: 'Заказы',
+    dashboard: 'Панель управления',
+    logout: 'Выход',
+    login: 'Вход',
+    signup: 'Регистрация',
+    home: 'Главная',
+    cart: 'Корзина',
+    profile: 'Профиль',
+
+    // Footer
+    footer_description: 'Поставщик качественных халяльных куриных продуктов',
+    quick_links: 'Быстрые ссылки',
+    contact: 'Контакты',
+    follow_us: 'Социальные сети',
+    address: 'г. Ташкент, Чиланзарский район',
+    all_rights_reserved: 'Все права защищены',
+    privacy_policy: 'Политика конфиденциальности',
+    terms_of_service: 'Условия использования',
+
+    // Landing Page
+    orderFresh: 'Заказывайте свежее',
+    negotiateFair: 'Обсуждайте справедливые цены',
+    halalChickenDesc:
+      'Халяльные куриные продукты напрямую от надежных поставщиков. Гарантия качества и халяльности.',
+    browseProducts: 'Просмотреть товары',
+    contactWhatsApp: 'Связаться через WhatsApp',
+
+    // Trust Section
+    whyChoose: 'Почему выбрать Halal Chicken?',
+    halalCertified: '100% Халяль сертификация',
+    halalDescription:
+      'Все продукты сертифицированы как халяль с полной отслеживаемостью и документацией.',
+    directFarm: 'Прямо с фермы',
+    directDescription:
+      'Свежее от надежных поставщиков, гарантирующих качество и подлинность от источника.',
+    trustedPartners: 'Надежные партнеры',
+    trustedDescription:
+      'Построение долгосрочных отношений на основе прозрачности и взаимного уважения.',
+
+    // Testimonials
+    whatCustomersSay: 'Отзывы наших клиентов',
+    fromAll: 'Доверие ресторанов, предприятий и семей по всему региону',
+
+    // Products
+    allCategories: 'Все категории',
+    allSuppliers: 'Все поставщики',
+    searchProducts: 'Поиск товаров...',
+    addToCart: 'В корзину',
+    inStock: 'В наличии',
+    outOfStock: 'Нет в наличии',
+    kg: 'кг',
+    quantity: 'Количество',
+
+    // Cart
+    shoppingCart: 'Корзина покупок',
+    cartEmpty: 'Ваша корзина пуста',
+    continueShopping: 'Продолжить покупки',
+    orderSummary: 'Сводка заказа',
+    totalItems: 'Всего товаров',
+    totalWeight: 'Общий вес',
+    placeOrder: 'Оформить заказ',
+    remove: 'Удалить',
+    orderPlaced: 'Заказ размещен!',
+    orderSuccess: 'Ваш заказ успешно размещен.',
+    orderNumber: 'Номер заказа',
+    contactMessageIntro:
+      'Здравствуйте! Готов текст сообщения для Telegram. Свяжитесь с администратором через него.',
+    contactViaTelegram: 'Связаться через Telegram',
+    placeOrderToContact: 'Сначала оформите заказ, чтобы получить текст сообщения.',
+
+    // Orders
+    orderHistory: 'История заказов',
+    noOrders: 'У вас пока нет заказов',
+    noProducts: 'Товары не найдены',
+    startShopping: 'Начать покупки',
+    reorder: 'Переоформить',
+    orderDetails: 'Детали заказа',
+    status: 'Статус',
+    date: 'Дата',
+    items: 'Товары',
+
+    // Order Status
+    Received: 'Принят',
+    Confirmed: 'Подтвержден',
+    Shipped: 'Отправлен',
+
+    // Auth
+    email: 'Email',
+    password: 'Пароль',
+    name: 'Имя',
+    phone: 'Телефон',
+    address_field: 'Адрес',
+    isRequired: 'обязателен',
+    dontHaveAccount: 'Нет аккаунта?',
+    alreadyHaveAccount: 'Уже есть аккаунт?',
+    individual: 'Физическое лицо',
+    business: 'Юридическое лицо',
+    legalEntity: 'Юридическое лицо',
+    companyName: 'Название компании',
+    inn: 'ИНН',
+    bankDetails: 'Банковские реквизиты',
+    legalAddress: 'Юридический адрес',
+    responsiblePerson: 'Ответственное лицо',
+
+    // Admin
+    adminDashboard: 'Админ панель',
+    statistics: 'Статистика',
+    todayOrders: 'Заказы сегодня',
+    newOrders: 'Новые заказы',
+    totalProducts: 'Всего товаров',
+    totalCustomers: 'Всего клиентов',
+    allOrders: 'Все заказы',
+    customer: 'Клиент',
+    contactCustomer: 'Связаться с клиентом',
+    actions: 'Действия',
+    changeStatus: 'Изменить статус',
+    viewDetails: 'Просмотр деталей',
+    userManagement: 'Управление пользователями',
+    allUsers: 'Все пользователи',
+    changeRole: 'Изменить роль',
+    exportOrders: 'Экспорт заказов',
+    importProducts: 'Импорт товаров',
+    exporting: 'Экспорт...',
+    importing: 'Импорт...',
+    downloadReady: 'Готово к загрузке',
+    download: 'Скачать',
+    selectFile: 'Выберите файл',
+    uploadFile: 'Загрузить файл',
+    jobPending: 'В очереди',
+    jobRunning: 'Выполняется',
+    jobSuccess: 'Успешно',
+    jobFailed: 'Ошибка',
+    downloadTemplate: 'Скачать шаблон',
+    importInstructions: 'Файл должен содержать следующие столбцы:',
+    importMaxSize: 'Максимальный размер файла — 10 МБ.',
+    CUSTOMER: 'Клиент',
+    ADMIN: 'Админ',
+    SUPERADMIN: 'СуперАдмин',
+    roleChangedSuccess: 'Роль успешно изменена',
+    roleChangeFailed: 'Ошибка при изменении роли',
+    currentUser: 'Вы',
+
+    // Common
+    close: 'Закрыть',
+    save: 'Сохранить',
+    cancel: 'Отмена',
+    edit: 'Редактировать',
+    delete: 'Удалить',
+    search: 'Поиск',
+    filter: 'Фильтр',
+    loading: 'Загрузка...',
+    error: 'Ошибка',
+    success: 'Успех',
+    pleaseLogin: 'Пожалуйста, войдите в систему',
+    noPricesShown: 'Цены обсуждаются через WhatsApp',
+    personalInfo: 'Личная информация',
+    accessDenied: 'Доступ запрещен. Только для администраторов.',
+    accountInfo: 'Информация об аккаунте',
+    userType: 'Тип пользователя',
+    role: 'Роль',
+    legal_entity: 'Юридическое лицо',
+    statusFilter: 'Фильтр статусов',
+    allStatuses: 'Все статусы',
+  },
+}
+
+export type Language = 'uz' | 'ru'
+
+export function t(key: string, lang: Language = 'uz'): string {
+  const keys = key.split('.')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let value: any = translations[lang]
+  for (const k of keys) {
+    value = value?.[k]
+  }
+  return value || key
+}

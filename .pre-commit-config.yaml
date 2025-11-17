@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        language_version: python3.12
+        args: ["--line-length", "100"]
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        additional_dependencies: ["django-stubs", "djangorestframework-stubs"]
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.3.3
+    hooks:
+      - id: prettier
+        additional_dependencies: ["prettier@3.3.3"]
+        files: "frontend/\.(ts|tsx|js|jsx|css|json|md)$"
+  - repo: https://github.com/eslint/eslint
+    rev: v8.57.0
+    hooks:
+      - id: eslint
+        files: frontend/.*\.(ts|tsx|js|jsx)$
+        additional_dependencies:
+          ["eslint@8.57.0", "@typescript-eslint/parser@7.16.1", "@typescript-eslint/eslint-plugin@7.16.1"]

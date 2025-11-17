@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.venv/
+env/
+.DS_Store
+node_modules/
+dist/
+.pytest_cache/
+.mypy_cache/
+coverage/
+
+# Environment files (contains secrets)
+backend/.env
+backend/.env.local
+backend/.env.prod
+frontend/.env
+frontend/.env.local
+frontend/.env.prod
+
+*.md
+*.txt
+PRODUCTION.md
+documentation.md

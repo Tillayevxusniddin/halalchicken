@@ -1,0 +1,160 @@
+import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { useAuth, useOrders } from "@/lib/context"
+import { t } from "@/lib/i18n"
+import { OrderStatus } from "@/lib/types"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { ShoppingBag, Package, Clock, Send } from "lucide-react"
+import { formatDateTime } from "@/lib/utils"
+import { telegramTemplate } from "@/lib/api"
+
+const statusColors: Record<OrderStatus, string> = {
+  Received: "bg-blue-500",
+  Confirmed: "bg-purple-500",
+  Shipped: "bg-green-500",
+}
+
+export function Orders() {
+  const { language, user } = useAuth()
+  const { orders, isLoading, reorder } = useOrders()
+  const navigate = useNavigate()
+  const [contactingId, setContactingId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/login")
+    } else if (user.role !== "CUSTOMER") {
+      navigate("/admin")
+    }
+  }, [user, navigate])
+
+  const handleReorder = async (orderId: number) => {
+    try {
+      await reorder(orderId)
+      navigate("/cart")
+    } catch (error) {
+      console.error("Failed to reorder:", error)
+    }
+  }
+
+  const handleContact = async (orderId: number) => {
+    setContactingId(orderId)
+    try {
+      const { text } = await telegramTemplate(orderId)
+      const encoded = encodeURIComponent(text)
+      window.open(`https://t.me/share/url?url=&text=${encoded}`, "_blank")
+    } catch (error) {
+      console.error("Failed to generate contact message:", error)
+    } finally {
+      setContactingId(null)
+    }
+  }
+
+  if (!user) {
+    return null
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container py-8">
+        <h1 className="text-3xl font-bold mb-6">{t("orderHistory", language)}</h1>
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="container py-16">
+        <div className="max-w-2xl mx-auto text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center">
+              <Package className="h-12 w-12 text-muted-foreground" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold mb-2">{t("noOrders", language)}</h1>
+            <p className="text-muted-foreground">{t("startShopping", language)}</p>
+          </div>
+          <Button onClick={() => navigate("/products")} size="lg">
+            {t("browseProducts", language)}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container py-8">
+      <h1 className="text-3xl font-bold mb-8">{t("orderHistory", language)}</h1>
+
+      <div className="space-y-4">
+        {orders.map((order) => (
+          <Card key={order.id}>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg">
+                    {t("orderNumber", language)}: {order.order_number}
+                  </CardTitle>
+                  <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    {formatDateTime(order.created_at)}
+                  </div>
+                </div>
+                <Badge className={statusColors[order.status]}>
+                  {t(order.status, language)}
+                </Badge>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {/* Order Items */}
+              <div className="space-y-2">
+                {order.items.map((item, index) => (
+                  <div key={index} className="flex items-center gap-3 text-sm">
+                    <img
+                      src={item.product.image_url || "https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=60&h=60&fit=crop"}
+                      alt={language === "uz" ? item.product.name_uz : item.product.name_ru}
+                      className="h-12 w-12 object-cover rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">
+                        {language === "uz" ? item.product.name_uz : item.product.name_ru}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {t("quantity", language)}: {item.quantity} {t("kg", language)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 flex-wrap">
+                <Button variant="outline" onClick={() => handleReorder(order.id)}>
+                  <ShoppingBag className="mr-2 h-4 w-4" />
+                  {t("reorder", language)}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => handleContact(order.id)}
+                  disabled={contactingId === order.id}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {contactingId === order.id ? t("loading", language) : t("contactViaTelegram", language)}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+}
