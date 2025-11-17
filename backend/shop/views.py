@@ -227,6 +227,26 @@ class OrderViewSet(GenericViewSet):
             for item in cart.items.all():
                 OrderItem.objects.create(order=order, product=item.product, quantity=item.quantity)
             cart.items.all().delete()
+        
+        # Send Telegram notification to admins (async, don't block response)
+        try:
+            from .telegram_service import telegram_service
+            # Use Celery task if available, otherwise send synchronously
+            try:
+                from .tasks import send_order_notification_task
+                send_order_notification_task.delay(order.id)
+            except Exception:
+                # Fallback to synchronous send if Celery not available
+                # Reload order with relationships for notification
+                order.refresh_from_db()
+                order = Order.objects.select_related("user").prefetch_related("items__product").get(pk=order.id)
+                telegram_service.send_order_notification(order)
+        except Exception as e:
+            # Log error but don't fail the order creation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send Telegram notification for order {order.id}: {e}")
+        
         return Response(OrderSerializer(order).data, status=201)
 
     @action(detail=True, methods=["post"])

@@ -44,8 +44,8 @@ export interface Category {
 export interface Supplier {
   id: number
   name: string
-  phone: string
-  address: string
+  phone?: string
+  address?: string
   status: boolean
   created_at: string
 }

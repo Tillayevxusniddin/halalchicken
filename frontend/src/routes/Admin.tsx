@@ -12,10 +12,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ShoppingCart, Package, Users as UsersIcon, MoreVertical, Download, Upload, FileSpreadsheet, Send } from 'lucide-react'
-import type { Order, OrderStatus, User } from '@/lib/types'
+import { ShoppingCart, Package, Users as UsersIcon, MoreVertical, Download, Upload, FileSpreadsheet, Send, Plus, Edit, Trash2, X, Save } from 'lucide-react'
+import type { Order, OrderStatus, User, Product, Category, Supplier } from '@/lib/types'
 import { formatDateTime } from '@/lib/utils'
 import { adminTelegramContact } from '@/lib/api'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 
 interface AdminStats {
   today_orders: number
@@ -47,10 +56,13 @@ interface AdminOrder extends Omit<Order, 'user'> {
 export function Admin() {
   const { language, user } = useAuth()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<'orders' | 'users' | 'excel'>('orders')
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'categories' | 'suppliers' | 'users' | 'excel'>('orders')
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL')
   const [exportJob, setExportJob] = useState<AsyncJob | null>(null)
   const [importJob, setImportJob] = useState<AsyncJob | null>(null)
@@ -58,6 +70,24 @@ export function Admin() {
   const [roleChangeLoading, setRoleChangeLoading] = useState<Record<string, boolean>>({})
   const [roleChangeError, setRoleChangeError] = useState<string | null>(null)
   const [roleChangeSuccess, setRoleChangeSuccess] = useState<string | null>(null)
+  
+  // Dialog states
+  const [productDialogOpen, setProductDialogOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false)
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
+  
+  // Form states
+  const [productForm, setProductForm] = useState<Partial<Product>>({})
+  const [categoryForm, setCategoryForm] = useState<Partial<Category>>({})
+  const [supplierForm, setSupplierForm] = useState<Partial<Supplier>>({})
+  
+  // Search/filter states
+  const [productSearch, setProductSearch] = useState('')
+  const [categorySearch, setCategorySearch] = useState('')
+  const [supplierSearch, setSupplierSearch] = useState('')
 
   useEffect(() => {
     if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPERADMIN')) {
@@ -95,6 +125,26 @@ export function Admin() {
           // Check if response is paginated (has 'results' key) or direct array
           setUsers(Array.isArray(usersData) ? usersData : (usersData.results || []))
         }
+      }
+
+      // Fetch products, categories, suppliers
+      const [productsRes, categoriesRes, suppliersRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_ORIGIN}/api/products/`, { headers }),
+        fetch(`${import.meta.env.VITE_API_ORIGIN}/api/categories/`, { headers }),
+        fetch(`${import.meta.env.VITE_API_ORIGIN}/api/suppliers/`, { headers }),
+      ])
+
+      if (productsRes.ok) {
+        const data = await productsRes.json()
+        setProducts(Array.isArray(data) ? data : (data.results || []))
+      }
+      if (categoriesRes.ok) {
+        const data = await categoriesRes.json()
+        setCategories(Array.isArray(data) ? data : (data.results || []))
+      }
+      if (suppliersRes.ok) {
+        const data = await suppliersRes.json()
+        setSuppliers(Array.isArray(data) ? data : (data.results || []))
       }
     } catch (error) {
       console.error('Failed to fetch admin data:', error)
@@ -284,6 +334,322 @@ const statusColors: Record<OrderStatus, string> = {
     }
   }
 
+  // CRUD handlers for Products
+  const handleCreateProduct = async (data: Partial<Product>) => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/products/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    if (response.ok) {
+      await fetchAdminData()
+      setProductDialogOpen(false)
+      setProductForm({})
+    } else {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Failed to create product')
+    }
+  }
+
+  const handleUpdateProduct = async (id: number, data: Partial<Product>) => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/products/${id}/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    if (response.ok) {
+      await fetchAdminData()
+      setProductDialogOpen(false)
+      setEditingProduct(null)
+      setProductForm({})
+    } else {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Failed to update product')
+    }
+  }
+  
+  const handleOpenProductDialog = (product?: Product) => {
+    if (product) {
+      setEditingProduct(product)
+      setProductForm({
+        name_uz: product.name_uz,
+        name_ru: product.name_ru,
+        category: product.category,
+        supplier: product.supplier,
+        image_url: product.image_url,
+        description: product.description,
+        status: product.status,
+      })
+    } else {
+      setEditingProduct(null)
+      setProductForm({
+        name_uz: '',
+        name_ru: '',
+        category: categories[0]?.id || 0,
+        supplier: suppliers[0]?.id || 0,
+        image_url: '',
+        description: '',
+        status: true,
+      })
+    }
+    setProductDialogOpen(true)
+  }
+  
+  const handleSubmitProduct = async () => {
+    if (!productForm.name_uz || !productForm.name_ru || !productForm.category || !productForm.supplier) {
+      alert(t('pleaseFillRequired', language) || 'Please fill all required fields')
+      return
+    }
+    try {
+      if (editingProduct) {
+        await handleUpdateProduct(editingProduct.id, productForm)
+      } else {
+        await handleCreateProduct(productForm)
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'An error occurred')
+    }
+  }
+
+  const handleDeleteProduct = async (id: number) => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/products/${id}/`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (response.ok) {
+      await fetchAdminData()
+    } else {
+      throw new Error('Failed to delete product')
+    }
+  }
+
+  // CRUD handlers for Categories
+  const handleCreateCategory = async (data: Partial<Category>) => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/categories/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    if (response.ok) {
+      await fetchAdminData()
+      setCategoryDialogOpen(false)
+      setCategoryForm({})
+    } else {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Failed to create category')
+    }
+  }
+
+  const handleUpdateCategory = async (id: number, data: Partial<Category>) => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/categories/${id}/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    if (response.ok) {
+      await fetchAdminData()
+      setCategoryDialogOpen(false)
+      setEditingCategory(null)
+      setCategoryForm({})
+    } else {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Failed to update category')
+    }
+  }
+  
+  const handleOpenCategoryDialog = (category?: Category) => {
+    if (category) {
+      setEditingCategory(category)
+      setCategoryForm({
+        name_uz: category.name_uz,
+        name_ru: category.name_ru,
+        order: category.order,
+        status: category.status,
+      })
+    } else {
+      setEditingCategory(null)
+      setCategoryForm({
+        name_uz: '',
+        name_ru: '',
+        order: 0,
+        status: true,
+      })
+    }
+    setCategoryDialogOpen(true)
+  }
+  
+  const handleSubmitCategory = async () => {
+    if (!categoryForm.name_uz || !categoryForm.name_ru) {
+      alert(t('pleaseFillRequired', language) || 'Please fill all required fields')
+      return
+    }
+    try {
+      if (editingCategory) {
+        await handleUpdateCategory(editingCategory.id, categoryForm)
+      } else {
+        await handleCreateCategory(categoryForm)
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'An error occurred')
+    }
+  }
+
+  const handleDeleteCategory = async (id: number) => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/categories/${id}/`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (response.ok) {
+      await fetchAdminData()
+    } else {
+      throw new Error('Failed to delete category')
+    }
+  }
+
+  // CRUD handlers for Suppliers
+  const handleCreateSupplier = async (data: Partial<Supplier>) => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/suppliers/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    if (response.ok) {
+      await fetchAdminData()
+      setSupplierDialogOpen(false)
+      setSupplierForm({})
+    } else {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Failed to create supplier')
+    }
+  }
+
+  const handleUpdateSupplier = async (id: number, data: Partial<Supplier>) => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/suppliers/${id}/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    if (response.ok) {
+      await fetchAdminData()
+      setSupplierDialogOpen(false)
+      setEditingSupplier(null)
+      setSupplierForm({})
+    } else {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Failed to update supplier')
+    }
+  }
+  
+  const handleOpenSupplierDialog = (supplier?: Supplier) => {
+    if (supplier) {
+      setEditingSupplier(supplier)
+      setSupplierForm({
+        name: supplier.name,
+        phone: supplier.phone || '',
+        address: supplier.address || '',
+        status: supplier.status,
+      })
+    } else {
+      setEditingSupplier(null)
+      setSupplierForm({
+        name: '',
+        phone: '',
+        address: '',
+        status: true,
+      })
+    }
+    setSupplierDialogOpen(true)
+  }
+  
+  const handleSubmitSupplier = async () => {
+    if (!supplierForm.name) {
+      alert(t('pleaseFillRequired', language) || 'Please fill all required fields')
+      return
+    }
+    try {
+      if (editingSupplier) {
+        await handleUpdateSupplier(editingSupplier.id, supplierForm)
+      } else {
+        await handleCreateSupplier(supplierForm)
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'An error occurred')
+    }
+  }
+  
+  // Filtered lists
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return products
+    const search = productSearch.toLowerCase()
+    return products.filter(p => 
+      p.name_uz.toLowerCase().includes(search) || 
+      p.name_ru.toLowerCase().includes(search)
+    )
+  }, [products, productSearch])
+  
+  const filteredCategories = useMemo(() => {
+    if (!categorySearch) return categories
+    const search = categorySearch.toLowerCase()
+    return categories.filter(c => 
+      c.name_uz.toLowerCase().includes(search) || 
+      c.name_ru.toLowerCase().includes(search)
+    )
+  }, [categories, categorySearch])
+  
+  const filteredSuppliers = useMemo(() => {
+    if (!supplierSearch) return suppliers
+    const search = supplierSearch.toLowerCase()
+    return suppliers.filter(s => 
+      s.name.toLowerCase().includes(search) ||
+      (s.phone && s.phone.toLowerCase().includes(search))
+    )
+  }, [suppliers, supplierSearch])
+
+  const handleDeleteSupplier = async (id: number) => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/suppliers/${id}/`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (response.ok) {
+      await fetchAdminData()
+    } else {
+      throw new Error('Failed to delete supplier')
+    }
+  }
+
   if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPERADMIN')) {
     return null
   }
@@ -344,10 +710,10 @@ const statusColors: Record<OrderStatus, string> = {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b">
+      <div className="flex gap-2 mb-6 border-b overflow-x-auto">
         <button
           onClick={() => setActiveTab('orders')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'orders'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -355,10 +721,40 @@ const statusColors: Record<OrderStatus, string> = {
         >
           {t('allOrders', language)}
         </button>
+        <button
+          onClick={() => setActiveTab('products')}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === 'products'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {t('products', language)}
+        </button>
+        <button
+          onClick={() => setActiveTab('categories')}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === 'categories'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {t('categories', language)}
+        </button>
+        <button
+          onClick={() => setActiveTab('suppliers')}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === 'suppliers'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {t('suppliers', language)}
+        </button>
         {user.role === 'SUPERADMIN' && (
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'users'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -369,7 +765,7 @@ const statusColors: Record<OrderStatus, string> = {
         )}
         <button
           onClick={() => setActiveTab('excel')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'excel'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -493,6 +889,424 @@ const statusColors: Record<OrderStatus, string> = {
           )}
         </CardContent>
       </Card>
+      )}
+
+      {/* Products Tab */}
+      {activeTab === 'products' && (
+        <>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>{t('products', language)}</CardTitle>
+                <Button onClick={() => handleOpenProductDialog()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('add', language)} {t('products', language)}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <Input
+                  placeholder={t('searchProducts', language)}
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+              {filteredProducts.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  {productSearch ? t('noProducts', language) : t('loading', language)}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredProducts.map((product) => {
+                    const categoryName = categories.find(c => c.id === product.category)
+                    const supplierName = suppliers.find(s => s.id === product.supplier)
+                    return (
+                      <div key={product.id} className="p-4 border rounded-lg flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium">{language === 'uz' ? product.name_uz : product.name_ru}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t('category', language)}: {categoryName ? (language === 'uz' ? categoryName.name_uz : categoryName.name_ru) : product.category} • {t('supplier', language)}: {supplierName ? supplierName.name : product.supplier}
+                          </div>
+                          <Badge variant={product.status ? 'default' : 'secondary'} className="mt-2">
+                            {product.status ? t('inStock', language) : t('outOfStock', language)}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleOpenProductDialog(product)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            const message = t('confirmDelete', language) || 'Are you sure you want to delete this item?'
+                            if (confirm(message)) {
+                              handleDeleteProduct(product.id)
+                            }
+                          }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Product Dialog */}
+          <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingProduct ? t('edit', language) : t('add', language)} {t('products', language)}</DialogTitle>
+                <DialogDescription>
+                  {editingProduct ? t('editProductDesc', language) || 'Edit product information' : t('addProductDesc', language) || 'Add a new product to the catalog'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name_uz">{t('nameUz', language) || 'Name (Uzbek)'} *</Label>
+                    <Input
+                      id="name_uz"
+                      value={productForm.name_uz || ''}
+                      onChange={(e) => setProductForm({ ...productForm, name_uz: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name_ru">{t('nameRu', language) || 'Name (Russian)'} *</Label>
+                    <Input
+                      id="name_ru"
+                      value={productForm.name_ru || ''}
+                      onChange={(e) => setProductForm({ ...productForm, name_ru: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="category">{t('category', language)} *</Label>
+                    <select
+                      id="category"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      value={productForm.category || ''}
+                      onChange={(e) => setProductForm({ ...productForm, category: Number(e.target.value) })}
+                      required
+                    >
+                      <option value="">{t('selectCategory', language) || 'Select category'}</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {language === 'uz' ? cat.name_uz : cat.name_ru}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="supplier">{t('supplier', language)} *</Label>
+                    <select
+                      id="supplier"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      value={productForm.supplier || ''}
+                      onChange={(e) => setProductForm({ ...productForm, supplier: Number(e.target.value) })}
+                      required
+                    >
+                      <option value="">{t('selectSupplier', language) || 'Select supplier'}</option>
+                      {suppliers.map((sup) => (
+                        <option key={sup.id} value={sup.id}>
+                          {sup.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="image_url">{t('imageUrl', language) || 'Image URL'}</Label>
+                  <Input
+                    id="image_url"
+                    type="url"
+                    value={productForm.image_url || ''}
+                    onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">{t('description', language)}</Label>
+                  <textarea
+                    id="description"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    value={productForm.description || ''}
+                    onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="status"
+                    checked={productForm.status ?? true}
+                    onChange={(e) => setProductForm({ ...productForm, status: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="status" className="cursor-pointer">{t('status', language)}: {productForm.status ? t('active', language) : t('inactive', language)}</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setProductDialogOpen(false)}>
+                  {t('cancel', language)}
+                </Button>
+                <Button onClick={handleSubmitProduct}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {t('save', language)}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
+
+      {/* Categories Tab */}
+      {activeTab === 'categories' && (
+        <>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>{t('categories', language)}</CardTitle>
+                <Button onClick={() => handleOpenCategoryDialog()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('add', language)} {t('categories', language)}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <Input
+                  placeholder={t('search', language) + '...'}
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+              {filteredCategories.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  {categorySearch ? t('noResults', language) || 'No results found' : t('loading', language)}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredCategories.map((category) => (
+                    <div key={category.id} className="p-4 border rounded-lg flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{language === 'uz' ? category.name_uz : category.name_ru}</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {t('order', language) || 'Order'}: {category.order}
+                        </div>
+                        <Badge variant={category.status ? 'default' : 'secondary'} className="mt-2">
+                          {category.status ? t('active', language) : t('inactive', language)}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenCategoryDialog(category)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          const message = t('confirmDelete', language) || 'Are you sure you want to delete this item?'
+                          if (confirm(message)) {
+                            handleDeleteCategory(category.id)
+                          }
+                        }}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Category Dialog */}
+          <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingCategory ? t('edit', language) : t('add', language)} {t('categories', language)}</DialogTitle>
+                <DialogDescription>
+                  {editingCategory ? t('editCategoryDesc', language) || 'Edit category information' : t('addCategoryDesc', language) || 'Add a new category'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cat_name_uz">{t('nameUz', language) || 'Name (Uzbek)'} *</Label>
+                    <Input
+                      id="cat_name_uz"
+                      value={categoryForm.name_uz || ''}
+                      onChange={(e) => setCategoryForm({ ...categoryForm, name_uz: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cat_name_ru">{t('nameRu', language) || 'Name (Russian)'} *</Label>
+                    <Input
+                      id="cat_name_ru"
+                      value={categoryForm.name_ru || ''}
+                      onChange={(e) => setCategoryForm({ ...categoryForm, name_ru: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cat_order">{t('order', language) || 'Order'}</Label>
+                  <Input
+                    id="cat_order"
+                    type="number"
+                    value={categoryForm.order || 0}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, order: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="cat_status"
+                    checked={categoryForm.status ?? true}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, status: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="cat_status" className="cursor-pointer">{t('status', language)}: {categoryForm.status ? t('active', language) : t('inactive', language)}</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
+                  {t('cancel', language)}
+                </Button>
+                <Button onClick={handleSubmitCategory}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {t('save', language)}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
+
+      {/* Suppliers Tab */}
+      {activeTab === 'suppliers' && (
+        <>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>{t('suppliers', language)}</CardTitle>
+                <Button onClick={() => handleOpenSupplierDialog()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('add', language)} {t('suppliers', language)}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <Input
+                  placeholder={t('search', language) + '...'}
+                  value={supplierSearch}
+                  onChange={(e) => setSupplierSearch(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+              {filteredSuppliers.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  {supplierSearch ? t('noResults', language) || 'No results found' : t('loading', language)}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredSuppliers.map((supplier) => (
+                    <div key={supplier.id} className="p-4 border rounded-lg flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{supplier.name}</div>
+                        {supplier.phone && (
+                          <div className="text-sm text-muted-foreground">{t('phone', language)}: {supplier.phone}</div>
+                        )}
+                        {supplier.address && (
+                          <div className="text-sm text-muted-foreground">{t('address_field', language)}: {supplier.address}</div>
+                        )}
+                        <Badge variant={supplier.status ? 'default' : 'secondary'} className="mt-2">
+                          {supplier.status ? t('active', language) : t('inactive', language)}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenSupplierDialog(supplier)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          const message = t('confirmDelete', language) || 'Are you sure you want to delete this item?'
+                          if (confirm(message)) {
+                            handleDeleteSupplier(supplier.id)
+                          }
+                        }}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Supplier Dialog */}
+          <Dialog open={supplierDialogOpen} onOpenChange={setSupplierDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingSupplier ? t('edit', language) : t('add', language)} {t('suppliers', language)}</DialogTitle>
+                <DialogDescription>
+                  {editingSupplier ? t('editSupplierDesc', language) || 'Edit supplier information' : t('addSupplierDesc', language) || 'Add a new supplier'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sup_name">{t('name', language)} *</Label>
+                  <Input
+                    id="sup_name"
+                    value={supplierForm.name || ''}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sup_phone">{t('phone', language)}</Label>
+                  <Input
+                    id="sup_phone"
+                    type="tel"
+                    value={supplierForm.phone || ''}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sup_address">{t('address_field', language)}</Label>
+                  <Input
+                    id="sup_address"
+                    value={supplierForm.address || ''}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, address: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="sup_status"
+                    checked={supplierForm.status ?? true}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, status: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="sup_status" className="cursor-pointer">{t('status', language)}: {supplierForm.status ? t('active', language) : t('inactive', language)}</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSupplierDialogOpen(false)}>
+                  {t('cancel', language)}
+                </Button>
+                <Button onClick={handleSubmitSupplier}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {t('save', language)}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
 
       {/* Users Tab */}

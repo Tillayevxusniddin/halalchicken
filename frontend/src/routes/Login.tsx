@@ -22,7 +22,19 @@ export function Login() {
 
     try {
       await login(username, password)
-      navigate("/")
+      // Get user data to determine redirect
+      const userStr = localStorage.getItem("user")
+      if (userStr) {
+        const userData = JSON.parse(userStr)
+        // Redirect admins to admin panel, customers to home
+        if (userData.role === "ADMIN" || userData.role === "SUPERADMIN") {
+          navigate("/admin")
+        } else {
+          navigate("/")
+        }
+      } else {
+        navigate("/")
+      }
     } catch (err) {
       setError("Invalid credentials")
     } finally {
