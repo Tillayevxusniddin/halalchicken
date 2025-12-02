@@ -13,7 +13,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { language } = useAuth()
+  const { language, user } = useAuth()
   const { addToCart } = useCart()
   const [isAdding, setIsAdding] = useState(false)
   const [quantity, setQuantity] = useState("1.00")
@@ -32,6 +32,7 @@ export function ProductCard({ product }: ProductCardProps) {
   }
 
   const productName = language === "uz" ? product.name_uz : product.name_ru
+  const isCustomer = !user || user.role === "CUSTOMER"
 
   return (
     <Card className="group overflow-hidden transition-all hover:shadow-lg">
@@ -64,29 +65,31 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
       </CardContent>
 
-      <CardFooter className="p-4 pt-0 flex flex-col gap-2">
-        <div className="space-y-1 w-full">
-          <label className="text-xs text-muted-foreground">
-            {t("quantity", language)} ({t("kg", language)})
-          </label>
-          <Input
-            type="number"
-            min="0.1"
-            step="0.1"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            disabled={!product.status}
-          />
-        </div>
-        <Button
-          className="w-full"
-          onClick={handleAddToCart}
-          disabled={!product.status || isAdding}
-        >
-          <ShoppingCart className="mr-2 h-4 w-4" />
-          {isAdding ? t("loading", language) : t("addToCart", language)}
-        </Button>
-      </CardFooter>
+      {isCustomer && (
+        <CardFooter className="p-4 pt-0 flex flex-col gap-2">
+          <div className="space-y-1 w-full">
+            <label className="text-xs text-muted-foreground">
+              {t("quantity", language)} ({t("kg", language)})
+            </label>
+            <Input
+              type="number"
+              min="0.1"
+              step="0.1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              disabled={!product.status}
+            />
+          </div>
+          <Button
+            className="w-full"
+            onClick={handleAddToCart}
+            disabled={!product.status || isAdding}
+          >
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            {isAdding ? t("loading", language) : t("addToCart", language)}
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   )
 }

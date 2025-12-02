@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/lib/context"
 import { t } from "@/lib/i18n"
 import { Product, Category, Supplier } from "@/lib/types"
@@ -6,7 +7,8 @@ import { ProductGrid, ProductFilters } from "@/components/products"
 import { getProducts, getCategories, getSuppliers } from "@/lib/api"
 
 export function Products() {
-  const { language } = useAuth()
+  const { language, user } = useAuth()
+  const navigate = useNavigate()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -16,6 +18,13 @@ export function Products() {
   const [selectedCategory, setSelectedCategory] = useState<number>()
   const [selectedSupplier, setSelectedSupplier] = useState<number>()
   const [searchQuery, setSearchQuery] = useState("")
+
+  // Redirect admins to admin panel
+  useEffect(() => {
+    if (user && (user.role === "ADMIN" || user.role === "SUPERADMIN")) {
+      navigate("/admin")
+    }
+  }, [user, navigate])
 
   // Fetch categories and suppliers on mount
   useEffect(() => {

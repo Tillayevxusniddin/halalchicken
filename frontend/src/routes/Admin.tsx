@@ -372,17 +372,13 @@ export function Admin() {
     try {
       const formData = new FormData()
 
-      formData.append('name_uz', productForm.name_uz || '')
-      formData.append('name_ru', productForm.name_ru || '')
-      formData.append('category', String(productForm.category))
-      formData.append('supplier', String(productForm.supplier))
+      formData.append('category_id', String(productForm.category))
+      formData.append('supplier_id', String(productForm.supplier))
       formData.append('description', productForm.description || '')
       formData.append('status', String(productForm.status ?? true))
 
       if (productImageFile) {
         formData.append('image_file', productImageFile)
-      } else if (productForm.image_url) {
-        formData.append('image_url', productForm.image_url)
       }
 
       await createProduct(formData)
@@ -401,17 +397,13 @@ export function Admin() {
     try {
       const formData = new FormData()
 
-      formData.append('name_uz', productForm.name_uz || '')
-      formData.append('name_ru', productForm.name_ru || '')
-      formData.append('category', String(productForm.category))
-      formData.append('supplier', String(productForm.supplier))
+      formData.append('category_id', String(productForm.category))
+      formData.append('supplier_id', String(productForm.supplier))
       formData.append('description', productForm.description || '')
       formData.append('status', String(productForm.status ?? true))
 
       if (productImageFile) {
         formData.append('image_file', productImageFile)
-      } else if (productForm.image_url) {
-        formData.append('image_url', productForm.image_url)
       }
 
       await updateProduct(editingProduct.id, formData)
@@ -429,31 +421,27 @@ export function Admin() {
     if (product) {
       setEditingProduct(product)
       setProductForm({
-        name_uz: product.name_uz,
-        name_ru: product.name_ru,
         category: product.category,
         supplier: product.supplier,
-        image_url: product.image_url,
         description: product.description,
         status: product.status,
       })
+      setProductImageFile(null)
     } else {
       setEditingProduct(null)
       setProductForm({
-        name_uz: '',
-        name_ru: '',
         category: categories[0]?.id || 0,
         supplier: suppliers[0]?.id || 0,
-        image_url: '',
         description: '',
         status: true,
       })
+      setProductImageFile(null)
     }
     setProductDialogOpen(true)
   }
 
   const handleSubmitProduct = async () => {
-    if (!productForm.name_uz || !productForm.name_ru || !productForm.category || !productForm.supplier) {
+    if (!productForm.category || !productForm.supplier) {
       alert(t('pleaseFillRequired', language) || 'Please fill all required fields')
       return
     }
@@ -898,9 +886,13 @@ export function Admin() {
                   className="max-w-sm"
                 />
               </div>
-              {filteredProducts.length === 0 ? (
+              {loading ? (
                 <div className="py-8 text-center text-muted-foreground">
-                  {productSearch ? t('noProducts', language) : t('loading', language)}
+                  {t('loading', language)}
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  {productSearch ? t('noProducts', language) : (language === 'uz' ? 'Siz hali mahsulot yaratmadingiz' : 'You have not created a product yet')}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -910,10 +902,13 @@ export function Admin() {
                     return (
                       <div key={product.id} className="p-4 border rounded-lg flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="font-medium">{language === 'uz' ? product.name_uz : product.name_ru}</div>
+                          <div className="font-medium">{categoryName ? (language === 'uz' ? categoryName.name_uz : categoryName.name_ru) : 'Unknown Category'}</div>
                           <div className="text-sm text-muted-foreground">
-                            {t('category', language)}: {categoryName ? (language === 'uz' ? categoryName.name_uz : categoryName.name_ru) : product.category} • {t('supplier', language)}: {supplierName ? supplierName.name : product.supplier}
+                            {t('supplier', language)}: {supplierName ? supplierName.name : product.supplier}
                           </div>
+                          {product.description && (
+                            <div className="text-sm text-muted-foreground mt-1">{product.description}</div>
+                          )}
                           <Badge variant={product.status ? 'default' : 'secondary'} className="mt-2">
                             {product.status ? t('inStock', language) : t('outOfStock', language)}
                           </Badge>
@@ -961,26 +956,6 @@ export function Admin() {
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name_uz">{t('nameUz', language) || 'Name (Uzbek)'} *</Label>
-                    <Input
-                      id="name_uz"
-                      value={productForm.name_uz || ''}
-                      onChange={(e) => setProductForm({ ...productForm, name_uz: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="name_ru">{t('nameRu', language) || 'Name (Russian)'} *</Label>
-                    <Input
-                      id="name_ru"
-                      value={productForm.name_ru || ''}
-                      onChange={(e) => setProductForm({ ...productForm, name_ru: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
                     <Label htmlFor="category">{t('category', language)} *</Label>
                     <select
                       id="category"
@@ -1026,21 +1001,11 @@ export function Admin() {
                       if (file) setProductImageFile(file)
                     }}
                   />
-                  {productForm.image_url && !productImageFile && (
+                  {editingProduct && editingProduct.image_url && !productImageFile && (
                     <div className="text-xs text-muted-foreground">
-                      {t('currentImage', language)}: <a href={productForm.image_url} target="_blank" rel="noreferrer" className="underline">{t('view', language)}</a>
+                      {t('currentImage', language)}: <a href={editingProduct.image_url} target="_blank" rel="noreferrer" className="underline">{t('view', language)}</a>
                     </div>
                   )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="image_url">{t('imageUrl', language) || 'Image URL (Optional)'}</Label>
-                  <Input
-                    id="image_url"
-                    type="url"
-                    value={productForm.image_url || ''}
-                    onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
-                    placeholder="https://..."
-                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">{t('description', language)}</Label>

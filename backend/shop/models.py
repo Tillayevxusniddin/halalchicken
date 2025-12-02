@@ -56,8 +56,8 @@ class Supplier(models.Model):
 
 
 class Product(models.Model):
-    name_uz = models.CharField(max_length=255)
-    name_ru = models.CharField(max_length=255)
+    name_uz = models.CharField(max_length=255, blank=True, default='')
+    name_ru = models.CharField(max_length=255, blank=True, default='')
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products", db_index=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="products", db_index=True)
     image_url = models.URLField(blank=True)
@@ -66,7 +66,7 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
-        return self.name_uz
+        return self.name_uz or f"Product #{self.id}"
 
 
 class Cart(models.Model):

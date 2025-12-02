@@ -30,9 +30,12 @@ export function Header() {
           <Link to="/" className="text-sm font-medium transition-colors hover:text-primary">
             {t("nav_home", language)}
           </Link>
-          <Link to="/products" className="text-sm font-medium transition-colors hover:text-primary">
-            {t("nav_products", language)}
-          </Link>
+          {/* Products only visible for customers and unauthenticated users, not admins */}
+          {(!user || user.role === "CUSTOMER") && (
+            <Link to="/products" className="text-sm font-medium transition-colors hover:text-primary">
+              {t("nav_products", language)}
+            </Link>
+          )}
           {/* Cart only visible for customers, not admins */}
           {(!user || user.role === "CUSTOMER") && (
             <Link to="/cart" className="text-sm font-medium transition-colors hover:text-primary">
@@ -138,11 +141,14 @@ export function Header() {
                   {t("nav_home", language)}
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/products" className="cursor-pointer">
-                  {t("nav_products", language)}
-                </Link>
-              </DropdownMenuItem>
+              {/* Products only for customers and unauthenticated users */}
+              {(!user || user.role === "CUSTOMER") && (
+                <DropdownMenuItem asChild>
+                  <Link to="/products" className="cursor-pointer">
+                    {t("nav_products", language)}
+                  </Link>
+                </DropdownMenuItem>
+              )}
               {/* Cart only for customers */}
               {(!user || user.role === "CUSTOMER") && (
                 <DropdownMenuItem asChild>

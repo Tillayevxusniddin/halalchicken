@@ -129,6 +129,8 @@ class ProductSerializer(serializers.ModelSerializer):
         queryset=Supplier.objects.all(), write_only=True, source="supplier"
     )
     image_file = serializers.FileField(write_only=True, required=False, allow_null=True)
+    name_uz = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
+    name_ru = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
 
     class Meta:
         model = Product

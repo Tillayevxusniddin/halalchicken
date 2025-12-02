@@ -155,6 +155,13 @@ export async function adminTelegramContact(orderId: number) {
   }
 }
 
+export async function downloadTemplate() {
+  const response = await api.get('/admin/import/products/template/', {
+    responseType: 'blob',
+  })
+  return response.data
+}
+
 // Products
 export async function getProducts(params?: Record<string, any>) {
   const { data } = await api.get('/products/', { params })
