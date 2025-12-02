@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { User as UserIcon } from 'lucide-react'
+import { updateMe } from '@/lib/api'
 
 export function Profile() {
   const { language, user, updateUser } = useAuth()
@@ -39,23 +40,9 @@ export function Profile() {
     setMessage(null)
 
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/auth/me/`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (response.ok) {
-        const updatedUser = await response.json()
-        updateUser(updatedUser)
-        setMessage({ type: 'success', text: t('success', language) })
-      } else {
-        setMessage({ type: 'error', text: t('error', language) })
-      }
+      const updatedUser = await updateMe(formData)
+      updateUser(updatedUser)
+      setMessage({ type: 'success', text: t('success', language) })
     } catch (error) {
       console.error('Failed to update profile:', error)
       setMessage({ type: 'error', text: t('error', language) })
@@ -90,11 +77,10 @@ export function Profile() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {message && (
                 <div
-                  className={`p-3 rounded-md text-sm ${
-                    message.type === 'success'
+                  className={`p-3 rounded-md text-sm ${message.type === 'success'
                       ? 'bg-green-50 text-green-800 border border-green-200'
                       : 'bg-red-50 text-red-800 border border-red-200'
-                  }`}
+                    }`}
                 >
                   {message.text}
                 </div>

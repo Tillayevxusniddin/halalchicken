@@ -13,9 +13,33 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ShoppingCart, Package, Users as UsersIcon, MoreVertical, Download, Upload, FileSpreadsheet, Send, Plus, Edit, Trash2, X, Save } from 'lucide-react'
+import { PaginationControls } from '@/components/ui/pagination-controls'
 import type { Order, OrderStatus, User, Product, Category, Supplier } from '@/lib/types'
 import { formatDateTime } from '@/lib/utils'
-import { adminTelegramContact } from '@/lib/api'
+import {
+  adminSummary,
+  listOrders,
+  setOrderStatus,
+  exportOrders,
+  importProducts,
+  getJob,
+  adminTelegramContact,
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getSuppliers,
+  createSupplier,
+  updateSupplier,
+  deleteSupplier,
+  getUsers,
+  updateUserRole,
+  downloadTemplate,
+} from '@/lib/api'
 import {
   Dialog,
   DialogContent,
@@ -70,7 +94,7 @@ export function Admin() {
   const [roleChangeLoading, setRoleChangeLoading] = useState<Record<string, boolean>>({})
   const [roleChangeError, setRoleChangeError] = useState<string | null>(null)
   const [roleChangeSuccess, setRoleChangeSuccess] = useState<string | null>(null)
-  
+
   // Dialog states
   const [productDialogOpen, setProductDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -78,16 +102,30 @@ export function Admin() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
-  
+
   // Form states
   const [productForm, setProductForm] = useState<Partial<Product>>({})
+  const [productImageFile, setProductImageFile] = useState<File | null>(null)
   const [categoryForm, setCategoryForm] = useState<Partial<Category>>({})
   const [supplierForm, setSupplierForm] = useState<Partial<Supplier>>({})
-  
+
   // Search/filter states
   const [productSearch, setProductSearch] = useState('')
   const [categorySearch, setCategorySearch] = useState('')
   const [supplierSearch, setSupplierSearch] = useState('')
+
+  // Pagination states
+  const [ordersPage, setOrdersPage] = useState(1)
+  const [ordersTotal, setOrdersTotal] = useState(0)
+  const [productsPage, setProductsPage] = useState(1)
+  const [productsTotal, setProductsTotal] = useState(0)
+  const [categoriesPage, setCategoriesPage] = useState(1)
+  const [categoriesTotal, setCategoriesTotal] = useState(0)
+  const [suppliersPage, setSuppliersPage] = useState(1)
+  const [suppliersTotal, setSuppliersTotal] = useState(0)
+  const [usersPage, setUsersPage] = useState(1)
+  const [usersTotal, setUsersTotal] = useState(0)
+  const PAGE_SIZE = 10
 
   useEffect(() => {
     if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPERADMIN')) {
@@ -98,54 +136,86 @@ export function Admin() {
     fetchAdminData()
   }, [user, navigate])
 
+  const fetchOrders = async (page = 1) => {
+    try {
+      const params: any = { page }
+      if (statusFilter !== 'ALL') {
+        params.status = statusFilter
+      }
+      const data = await listOrders(params)
+      setOrders(data.results || [])
+      setOrdersTotal(data.count || 0)
+    } catch (error) {
+      console.error('Failed to fetch orders:', error)
+    }
+  }
+
+  const fetchProducts = async (page = 1) => {
+    try {
+      const params: any = { page }
+      if (productSearch) params.search = productSearch
+
+      const data = await getProducts(params)
+      setProducts(data.results || [])
+      setProductsTotal(data.count || 0)
+    } catch (error) {
+      console.error('Failed to fetch products:', error)
+    }
+  }
+
+  const fetchCategories = async (page = 1) => {
+    try {
+      const params: any = { page }
+      if (categorySearch) params.search = categorySearch
+
+      const data = await getCategories(params)
+      setCategories(data.results || [])
+      setCategoriesTotal(data.count || 0)
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+    }
+  }
+
+  const fetchSuppliers = async (page = 1) => {
+    try {
+      const params: any = { page }
+      if (supplierSearch) params.search = supplierSearch
+
+      const data = await getSuppliers(params)
+      setSuppliers(data.results || [])
+      setSuppliersTotal(data.count || 0)
+    } catch (error) {
+      console.error('Failed to fetch suppliers:', error)
+    }
+  }
+
+  const fetchUsers = async (page = 1) => {
+    try {
+      const data = await getUsers({ page })
+      setUsers(data.results || [])
+      setUsersTotal(data.count || 0)
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+    }
+  }
+
   const fetchAdminData = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const headers = { Authorization: `Bearer ${token}` }
-
       // Fetch statistics
-      const statsResponse = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/admin/summary/`, { headers })
-      if (statsResponse.ok) {
-        setStats(await statsResponse.json())
-      }
+      const statsData = await adminSummary()
+      setStats(statsData)
 
-      // Fetch orders - handle paginated response
-      const ordersResponse = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/admin/orders/`, { headers })
-      if (ordersResponse.ok) {
-        const ordersData = await ordersResponse.json()
-        // Check if response is paginated (has 'results' key) or direct array
-        setOrders((Array.isArray(ordersData) ? ordersData : (ordersData.results || [])) as AdminOrder[])
-      }
-
-      // Fetch users (if SUPERADMIN) - handle paginated response
-      if (user?.role === 'SUPERADMIN') {
-        const usersResponse = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/admin/users/`, { headers })
-        if (usersResponse.ok) {
-          const usersData = await usersResponse.json()
-          // Check if response is paginated (has 'results' key) or direct array
-          setUsers(Array.isArray(usersData) ? usersData : (usersData.results || []))
-        }
-      }
-
-      // Fetch products, categories, suppliers
-      const [productsRes, categoriesRes, suppliersRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_ORIGIN}/api/products/`, { headers }),
-        fetch(`${import.meta.env.VITE_API_ORIGIN}/api/categories/`, { headers }),
-        fetch(`${import.meta.env.VITE_API_ORIGIN}/api/suppliers/`, { headers }),
+      await Promise.all([
+        fetchOrders(ordersPage),
+        fetchProducts(productsPage),
+        fetchCategories(categoriesPage),
+        fetchSuppliers(suppliersPage),
       ])
 
-      if (productsRes.ok) {
-        const data = await productsRes.json()
-        setProducts(Array.isArray(data) ? data : (data.results || []))
+      if (user?.role === 'SUPERADMIN') {
+        await fetchUsers(usersPage)
       }
-      if (categoriesRes.ok) {
-        const data = await categoriesRes.json()
-        setCategories(Array.isArray(data) ? data : (data.results || []))
-      }
-      if (suppliersRes.ok) {
-        const data = await suppliersRes.json()
-        setSuppliers(Array.isArray(data) ? data : (data.results || []))
-      }
+
     } catch (error) {
       console.error('Failed to fetch admin data:', error)
     } finally {
@@ -155,80 +225,43 @@ export function Admin() {
 
   const handleStatusChange = async (orderId: number, newStatus: string) => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/orders/${orderId}/status/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      })
-
-      if (response.ok) {
-        await fetchAdminData()
-      }
+      await setOrderStatus(orderId, newStatus)
+      await fetchAdminData()
     } catch (error) {
       console.error('Failed to update status:', error)
     }
   }
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
+  const handleRoleChange = async (userId: number, newRole: string) => {
+    // @ts-ignore
     setRoleChangeLoading(prev => ({ ...prev, [userId]: true }))
     setRoleChangeError(null)
     setRoleChangeSuccess(null)
 
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/admin/users/${userId}/role/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ role: newRole }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setRoleChangeSuccess(data.message || t('roleChangedSuccess', language))
-        await fetchAdminData()
-        // Clear success message after 3 seconds
-        setTimeout(() => setRoleChangeSuccess(null), 3000)
-      } else {
-        const error = await response.json()
-        setRoleChangeError(error.detail || t('roleChangeFailed', language))
-        // Clear error message after 5 seconds
-        setTimeout(() => setRoleChangeError(null), 5000)
-      }
-    } catch (error) {
+      const data = await updateUserRole(userId, newRole)
+      // @ts-ignore
+      setRoleChangeSuccess(data.message || t('roleChangedSuccess', language))
+      await fetchAdminData()
+      setTimeout(() => setRoleChangeSuccess(null), 3000)
+    } catch (error: any) {
       console.error('Failed to change role:', error)
-      setRoleChangeError(t('roleChangeFailed', language))
+      setRoleChangeError(error.response?.data?.detail || t('roleChangeFailed', language))
       setTimeout(() => setRoleChangeError(null), 5000)
     } finally {
+      // @ts-ignore
       setRoleChangeLoading(prev => ({ ...prev, [userId]: false }))
     }
   }
 
   const handleExportOrders = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/admin/export/orders/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const job = await response.json()
-        const jobId = job.job_id || job.id
-        const normalizedJob = { ...job, id: jobId }
-        setExportJob(normalizedJob)
-        if (jobId) {
-          pollJobStatus(jobId, setExportJob)
-        }
+      const job = await exportOrders({})
+      const jobId = job.job_id || (job as any).id
+      const normalizedJob = { ...job, id: jobId }
+      setExportJob(normalizedJob)
+      if (jobId) {
+        pollJobStatus(jobId, setExportJob)
       }
     } catch (error) {
       console.error('Failed to export orders:', error)
@@ -237,26 +270,12 @@ export function Admin() {
 
   const handleImportProducts = async (file: File) => {
     try {
-      const token = localStorage.getItem('access_token')
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/admin/import/products/`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      })
-
-      if (response.ok) {
-        const job = await response.json()
-        const jobId = job.job_id || job.id
-        const normalizedJob = { ...job, id: jobId }
-        setImportJob(normalizedJob)
-        if (jobId) {
-          pollJobStatus(jobId, setImportJob)
-        }
+      const job = await importProducts(file)
+      const jobId = job.job_id || (job as any).id
+      const normalizedJob = { ...job, id: jobId }
+      setImportJob(normalizedJob)
+      if (jobId) {
+        pollJobStatus(jobId, setImportJob)
       }
     } catch (error) {
       console.error('Failed to import products:', error)
@@ -264,18 +283,12 @@ export function Admin() {
   }
 
   const pollJobStatus = async (jobId: string, setJob: (job: AsyncJob) => void) => {
-    const token = localStorage.getItem('access_token')
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/admin/jobs/${jobId}/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (response.ok) {
-          const job = await response.json()
-          setJob(job)
-          if (job.status === 'SUCCESS' || job.status === 'FAILED') {
-            clearInterval(interval)
-          }
+        const job = await getJob(jobId)
+        setJob(job as AsyncJob)
+        if (job.status === 'SUCCESS' || job.status === 'FAILED') {
+          clearInterval(interval)
         }
       } catch (error) {
         clearInterval(interval)
@@ -283,36 +296,56 @@ export function Admin() {
     }, 2000)
   }
 
-const statusColors: Record<OrderStatus, string> = {
-  Received: 'bg-blue-100 text-blue-800 border-blue-200',
-  Confirmed: 'bg-purple-100 text-purple-800 border-purple-200',
-  Shipped: 'bg-green-100 text-green-800 border-green-200',
-}
+  const statusColors: Record<OrderStatus, string> = {
+    Received: 'bg-blue-100 text-blue-800 border-blue-200',
+    Confirmed: 'bg-purple-100 text-purple-800 border-purple-200',
+    Shipped: 'bg-green-100 text-green-800 border-green-200',
+  }
 
   const statusTransitions: Record<OrderStatus, OrderStatus[]> = {
-  Received: ['Confirmed'],
-  Confirmed: ['Shipped'],
-  Shipped: [],
-}
+    Received: ['Confirmed'],
+    Confirmed: ['Shipped'],
+    Shipped: [],
+  }
   const statusTimeline: OrderStatus[] = ['Received', 'Confirmed', 'Shipped']
 
-  const filteredOrders = useMemo(() => {
-    if (statusFilter === 'ALL') return orders
-    return orders.filter((order) => order.status === statusFilter)
-  }, [orders, statusFilter])
+  const filteredOrders = orders
   const availableRoles = ['CUSTOMER', 'ADMIN', 'SUPERADMIN']
   const importColumns = ['name_uz', 'name_ru', 'category', 'supplier', 'image_url', 'description', 'status']
 
+  // Refetch when filters change
+  useEffect(() => {
+    setOrdersPage(1)
+    fetchOrders(1)
+  }, [statusFilter])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setProductsPage(1)
+      fetchProducts(1)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [productSearch])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCategoriesPage(1)
+      fetchCategories(1)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [categorySearch])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSuppliersPage(1)
+      fetchSuppliers(1)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [supplierSearch])
+
   const handleDownloadTemplate = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/admin/import/products/template/`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-      if (!response.ok) {
-        throw new Error('Failed to download template')
-      }
-      const blob = await response.blob()
+      const blob = await downloadTemplate()
       const link = document.createElement('a')
       link.href = URL.createObjectURL(blob)
       link.download = 'product_import_template.xlsx'
@@ -335,47 +368,63 @@ const statusColors: Record<OrderStatus, string> = {
   }
 
   // CRUD handlers for Products
-  const handleCreateProduct = async (data: Partial<Product>) => {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/products/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    })
-    if (response.ok) {
-      await fetchAdminData()
+  const handleCreateProduct = async () => {
+    try {
+      const formData = new FormData()
+
+      formData.append('name_uz', productForm.name_uz || '')
+      formData.append('name_ru', productForm.name_ru || '')
+      formData.append('category', String(productForm.category))
+      formData.append('supplier', String(productForm.supplier))
+      formData.append('description', productForm.description || '')
+      formData.append('status', String(productForm.status ?? true))
+
+      if (productImageFile) {
+        formData.append('image_file', productImageFile)
+      } else if (productForm.image_url) {
+        formData.append('image_url', productForm.image_url)
+      }
+
+      await createProduct(formData)
       setProductDialogOpen(false)
+      fetchProducts(productsPage)
       setProductForm({})
-    } else {
-      const errorData = await response.json()
-      throw new Error(errorData.detail || 'Failed to create product')
+      setProductImageFile(null)
+    } catch (error) {
+      console.error('Error creating product:', error)
     }
   }
 
-  const handleUpdateProduct = async (id: number, data: Partial<Product>) => {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/products/${id}/`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    })
-    if (response.ok) {
-      await fetchAdminData()
+  const handleUpdateProduct = async () => {
+    if (!editingProduct) return
+
+    try {
+      const formData = new FormData()
+
+      formData.append('name_uz', productForm.name_uz || '')
+      formData.append('name_ru', productForm.name_ru || '')
+      formData.append('category', String(productForm.category))
+      formData.append('supplier', String(productForm.supplier))
+      formData.append('description', productForm.description || '')
+      formData.append('status', String(productForm.status ?? true))
+
+      if (productImageFile) {
+        formData.append('image_file', productImageFile)
+      } else if (productForm.image_url) {
+        formData.append('image_url', productForm.image_url)
+      }
+
+      await updateProduct(editingProduct.id, formData)
       setProductDialogOpen(false)
       setEditingProduct(null)
+      fetchProducts(productsPage)
       setProductForm({})
-    } else {
-      const errorData = await response.json()
-      throw new Error(errorData.detail || 'Failed to update product')
+      setProductImageFile(null)
+    } catch (error) {
+      console.error('Error updating product:', error)
     }
   }
-  
+
   const handleOpenProductDialog = (product?: Product) => {
     if (product) {
       setEditingProduct(product)
@@ -402,7 +451,7 @@ const statusColors: Record<OrderStatus, string> = {
     }
     setProductDialogOpen(true)
   }
-  
+
   const handleSubmitProduct = async () => {
     if (!productForm.name_uz || !productForm.name_ru || !productForm.category || !productForm.supplier) {
       alert(t('pleaseFillRequired', language) || 'Please fill all required fields')
@@ -410,9 +459,9 @@ const statusColors: Record<OrderStatus, string> = {
     }
     try {
       if (editingProduct) {
-        await handleUpdateProduct(editingProduct.id, productForm)
+        await handleUpdateProduct()
       } else {
-        await handleCreateProduct(productForm)
+        await handleCreateProduct()
       }
     } catch (error) {
       alert(error instanceof Error ? error.message : 'An error occurred')
@@ -420,62 +469,41 @@ const statusColors: Record<OrderStatus, string> = {
   }
 
   const handleDeleteProduct = async (id: number) => {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/products/${id}/`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-    if (response.ok) {
-      await fetchAdminData()
-    } else {
-      throw new Error('Failed to delete product')
+    try {
+      await deleteProduct(id)
+      await fetchProducts(productsPage)
+    } catch (error) {
+      console.error('Failed to delete product:', error)
+      alert('Failed to delete product')
     }
   }
 
   // CRUD handlers for Categories
   const handleCreateCategory = async (data: Partial<Category>) => {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/categories/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    })
-    if (response.ok) {
-      await fetchAdminData()
+    try {
+      await createCategory(data)
+      await fetchCategories(categoriesPage)
       setCategoryDialogOpen(false)
       setCategoryForm({})
-    } else {
-      const errorData = await response.json()
-      throw new Error(errorData.detail || 'Failed to create category')
+    } catch (error) {
+      console.error('Failed to create category:', error)
+      throw error
     }
   }
 
   const handleUpdateCategory = async (id: number, data: Partial<Category>) => {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/categories/${id}/`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    })
-    if (response.ok) {
-      await fetchAdminData()
+    try {
+      await updateCategory(id, data)
+      await fetchCategories(categoriesPage)
       setCategoryDialogOpen(false)
       setEditingCategory(null)
       setCategoryForm({})
-    } else {
-      const errorData = await response.json()
-      throw new Error(errorData.detail || 'Failed to update category')
+    } catch (error) {
+      console.error('Failed to update category:', error)
+      throw error
     }
   }
-  
+
   const handleOpenCategoryDialog = (category?: Category) => {
     if (category) {
       setEditingCategory(category)
@@ -496,7 +524,7 @@ const statusColors: Record<OrderStatus, string> = {
     }
     setCategoryDialogOpen(true)
   }
-  
+
   const handleSubmitCategory = async () => {
     if (!categoryForm.name_uz || !categoryForm.name_ru) {
       alert(t('pleaseFillRequired', language) || 'Please fill all required fields')
@@ -514,62 +542,41 @@ const statusColors: Record<OrderStatus, string> = {
   }
 
   const handleDeleteCategory = async (id: number) => {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/categories/${id}/`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-    if (response.ok) {
+    try {
+      await deleteCategory(id)
       await fetchAdminData()
-    } else {
-      throw new Error('Failed to delete category')
+    } catch (error) {
+      console.error('Failed to delete category:', error)
+      alert('Failed to delete category')
     }
   }
 
   // CRUD handlers for Suppliers
   const handleCreateSupplier = async (data: Partial<Supplier>) => {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/suppliers/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    })
-    if (response.ok) {
+    try {
+      await createSupplier(data)
       await fetchAdminData()
       setSupplierDialogOpen(false)
       setSupplierForm({})
-    } else {
-      const errorData = await response.json()
-      throw new Error(errorData.detail || 'Failed to create supplier')
+    } catch (error) {
+      console.error('Failed to create supplier:', error)
+      throw error
     }
   }
 
   const handleUpdateSupplier = async (id: number, data: Partial<Supplier>) => {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/suppliers/${id}/`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    })
-    if (response.ok) {
+    try {
+      await updateSupplier(id, data)
       await fetchAdminData()
       setSupplierDialogOpen(false)
       setEditingSupplier(null)
       setSupplierForm({})
-    } else {
-      const errorData = await response.json()
-      throw new Error(errorData.detail || 'Failed to update supplier')
+    } catch (error) {
+      console.error('Failed to update supplier:', error)
+      throw error
     }
   }
-  
+
   const handleOpenSupplierDialog = (supplier?: Supplier) => {
     if (supplier) {
       setEditingSupplier(supplier)
@@ -590,7 +597,7 @@ const statusColors: Record<OrderStatus, string> = {
     }
     setSupplierDialogOpen(true)
   }
-  
+
   const handleSubmitSupplier = async () => {
     if (!supplierForm.name) {
       alert(t('pleaseFillRequired', language) || 'Please fill all required fields')
@@ -606,47 +613,22 @@ const statusColors: Record<OrderStatus, string> = {
       alert(error instanceof Error ? error.message : 'An error occurred')
     }
   }
-  
+
   // Filtered lists
-  const filteredProducts = useMemo(() => {
-    if (!productSearch) return products
-    const search = productSearch.toLowerCase()
-    return products.filter(p => 
-      p.name_uz.toLowerCase().includes(search) || 
-      p.name_ru.toLowerCase().includes(search)
-    )
-  }, [products, productSearch])
-  
-  const filteredCategories = useMemo(() => {
-    if (!categorySearch) return categories
-    const search = categorySearch.toLowerCase()
-    return categories.filter(c => 
-      c.name_uz.toLowerCase().includes(search) || 
-      c.name_ru.toLowerCase().includes(search)
-    )
-  }, [categories, categorySearch])
-  
-  const filteredSuppliers = useMemo(() => {
-    if (!supplierSearch) return suppliers
-    const search = supplierSearch.toLowerCase()
-    return suppliers.filter(s => 
-      s.name.toLowerCase().includes(search) ||
-      (s.phone && s.phone.toLowerCase().includes(search))
-    )
-  }, [suppliers, supplierSearch])
+  // Filtered lists - now just direct data since we filter on server
+  const filteredProducts = products
+
+  const filteredCategories = categories
+
+  const filteredSuppliers = suppliers
 
   const handleDeleteSupplier = async (id: number) => {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch(`${import.meta.env.VITE_API_ORIGIN}/api/suppliers/${id}/`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-    if (response.ok) {
+    try {
+      await deleteSupplier(id)
       await fetchAdminData()
-    } else {
-      throw new Error('Failed to delete supplier')
+    } catch (error) {
+      console.error('Failed to delete supplier:', error)
+      alert('Failed to delete supplier')
     }
   }
 
@@ -713,63 +695,57 @@ const statusColors: Record<OrderStatus, string> = {
       <div className="flex gap-2 mb-6 border-b overflow-x-auto">
         <button
           onClick={() => setActiveTab('orders')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'orders'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'orders'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
         >
           {t('allOrders', language)}
         </button>
         <button
           onClick={() => setActiveTab('products')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'products'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'products'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
         >
           {t('products', language)}
         </button>
         <button
           onClick={() => setActiveTab('categories')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'categories'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'categories'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
         >
           {t('categories', language)}
         </button>
         <button
           onClick={() => setActiveTab('suppliers')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'suppliers'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'suppliers'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
         >
           {t('suppliers', language)}
         </button>
         {user.role === 'SUPERADMIN' && (
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'users'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
+            className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
           >
             {t('userManagement', language)}
           </button>
         )}
         <button
           onClick={() => setActiveTab('excel')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'excel'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'excel'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
         >
           Excel
         </button>
@@ -806,55 +782,55 @@ const statusColors: Record<OrderStatus, string> = {
             ) : (
               <div className="space-y-4">
                 {filteredOrders.map((order) => (
-                <div key={order.id} className="p-4 border rounded-lg">
-                  <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
-                    <div>
-                      <div className="font-medium">
-                        {t('orderNumber', language)}: {order.order_number}
+                  <div key={order.id} className="p-4 border rounded-lg">
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
+                      <div>
+                        <div className="font-medium">
+                          {t('orderNumber', language)}: {order.order_number}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {formatDateTime(order.created_at)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {t('customer', language)}: {order.user?.fio || order.user?.username || `User #${order.user?.id}`}
+                          {order.user?.phone && ` • ${order.user.phone}`}
+                        </div>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {formatDateTime(order.created_at)}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {t('customer', language)}: {order.user?.fio || order.user?.username || `User #${order.user?.id}`}
-                        {order.user?.phone && ` • ${order.user.phone}`}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleContactCustomer(order.id)}
+                        >
+                          <Send className="mr-2 h-4 w-4" />
+                          {t('contactCustomer', language)}
+                        </Button>
+                        <Badge className={statusColors[order.status] || 'bg-gray-100 text-gray-800'}>
+                          {t(order.status, language)}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {statusTransitions[order.status]?.length ? (
+                              statusTransitions[order.status].map((status) => (
+                                <DropdownMenuItem
+                                  key={status}
+                                  onClick={() => handleStatusChange(order.id, status)}
+                                >
+                                  {t(status, language)}
+                                </DropdownMenuItem>
+                              ))
+                            ) : (
+                              <DropdownMenuItem disabled>{t(order.status, language)}</DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleContactCustomer(order.id)}
-                      >
-                        <Send className="mr-2 h-4 w-4" />
-                        {t('contactCustomer', language)}
-                      </Button>
-                      <Badge className={statusColors[order.status] || 'bg-gray-100 text-gray-800'}>
-                        {t(order.status, language)}
-                      </Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {statusTransitions[order.status]?.length ? (
-                            statusTransitions[order.status].map((status) => (
-                              <DropdownMenuItem
-                                key={status}
-                                onClick={() => handleStatusChange(order.id, status)}
-                              >
-                                {t(status, language)}
-                              </DropdownMenuItem>
-                            ))
-                          ) : (
-                            <DropdownMenuItem disabled>{t(order.status, language)}</DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
                     <div className="text-sm space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
                         {statusTimeline.map((step) => {
@@ -864,9 +840,8 @@ const statusColors: Record<OrderStatus, string> = {
                           return (
                             <div
                               key={step}
-                              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
-                                reached ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                              }`}
+                              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${reached ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                                }`}
                             >
                               <span className="h-2 w-2 rounded-full bg-current" />
                               {t(step, language)}
@@ -874,21 +849,31 @@ const statusColors: Record<OrderStatus, string> = {
                           )
                         })}
                       </div>
-                    <div className="mb-2 font-medium">{t('items', language)}:</div>
-                    <div className="space-y-1">
-                      {order.items.map((item, idx) => (
-                        <div key={idx} className="text-muted-foreground">
-                          {language === 'uz' ? item.product.name_uz : item.product.name_ru} × {item.quantity}
-                        </div>
-                      ))}
+                      <div className="mb-2 font-medium">{t('items', language)}:</div>
+                      <div className="space-y-1">
+                        {order.items.map((item, idx) => (
+                          <div key={idx} className="text-muted-foreground">
+                            {language === 'uz' ? item.product.name_uz : item.product.name_ru} × {item.quantity}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+            <PaginationControls
+              currentPage={ordersPage}
+              totalPages={Math.ceil(ordersTotal / PAGE_SIZE)}
+              onPageChange={(page) => {
+                setOrdersPage(page)
+                fetchOrders(page)
+              }}
+              hasNext={ordersPage < Math.ceil(ordersTotal / PAGE_SIZE)}
+              hasPrevious={ordersPage > 1}
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* Products Tab */}
@@ -951,6 +936,16 @@ const statusColors: Record<OrderStatus, string> = {
                   })}
                 </div>
               )}
+              <PaginationControls
+                currentPage={productsPage}
+                totalPages={Math.ceil(productsTotal / PAGE_SIZE)}
+                onPageChange={(page) => {
+                  setProductsPage(page)
+                  fetchProducts(page)
+                }}
+                hasNext={productsPage < Math.ceil(productsTotal / PAGE_SIZE)}
+                hasPrevious={productsPage > 1}
+              />
             </CardContent>
           </Card>
 
@@ -1021,12 +1016,30 @@ const statusColors: Record<OrderStatus, string> = {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="image_url">{t('imageUrl', language) || 'Image URL'}</Label>
+                  <Label htmlFor="image_file">{t('imageFile', language) || 'Product Image'}</Label>
+                  <Input
+                    id="image_file"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) setProductImageFile(file)
+                    }}
+                  />
+                  {productForm.image_url && !productImageFile && (
+                    <div className="text-xs text-muted-foreground">
+                      {t('currentImage', language)}: <a href={productForm.image_url} target="_blank" rel="noreferrer" className="underline">{t('view', language)}</a>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="image_url">{t('imageUrl', language) || 'Image URL (Optional)'}</Label>
                   <Input
                     id="image_url"
                     type="url"
                     value={productForm.image_url || ''}
                     onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
+                    placeholder="https://..."
                   />
                 </div>
                 <div className="space-y-2">
@@ -1119,6 +1132,16 @@ const statusColors: Record<OrderStatus, string> = {
                   ))}
                 </div>
               )}
+              <PaginationControls
+                currentPage={categoriesPage}
+                totalPages={Math.ceil(categoriesTotal / PAGE_SIZE)}
+                onPageChange={(page) => {
+                  setCategoriesPage(page)
+                  fetchCategories(page)
+                }}
+                hasNext={categoriesPage < Math.ceil(categoriesTotal / PAGE_SIZE)}
+                hasPrevious={categoriesPage > 1}
+              />
             </CardContent>
           </Card>
 
@@ -1245,6 +1268,16 @@ const statusColors: Record<OrderStatus, string> = {
                   ))}
                 </div>
               )}
+              <PaginationControls
+                currentPage={suppliersPage}
+                totalPages={Math.ceil(suppliersTotal / PAGE_SIZE)}
+                onPageChange={(page) => {
+                  setSuppliersPage(page)
+                  fetchSuppliers(page)
+                }}
+                hasNext={suppliersPage < Math.ceil(suppliersTotal / PAGE_SIZE)}
+                hasPrevious={suppliersPage > 1}
+              />
             </CardContent>
           </Card>
 
@@ -1347,8 +1380,8 @@ const statusColors: Record<OrderStatus, string> = {
                         {u.id !== user.id ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 disabled={roleChangeLoading[u.id]}
                               >
@@ -1361,8 +1394,8 @@ const statusColors: Record<OrderStatus, string> = {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               {availableRoles.map((role) => (
-                                <DropdownMenuItem 
-                                  key={role} 
+                                <DropdownMenuItem
+                                  key={role}
                                   onClick={() => handleRoleChange(u.id, role)}
                                   disabled={u.role === role || roleChangeLoading[u.id]}
                                   className={u.role === role ? 'opacity-50 cursor-not-allowed' : ''}
@@ -1381,6 +1414,16 @@ const statusColors: Record<OrderStatus, string> = {
                 ))}
               </div>
             )}
+            <PaginationControls
+              currentPage={usersPage}
+              totalPages={Math.ceil(usersTotal / PAGE_SIZE)}
+              onPageChange={(page) => {
+                setUsersPage(page)
+                fetchUsers(page)
+              }}
+              hasNext={usersPage < Math.ceil(usersTotal / PAGE_SIZE)}
+              hasPrevious={usersPage > 1}
+            />
           </CardContent>
         </Card>
       )}
@@ -1411,8 +1454,8 @@ const statusColors: Record<OrderStatus, string> = {
                           exportJob.status === 'SUCCESS'
                             ? 'default'
                             : exportJob.status === 'FAILED'
-                            ? 'destructive'
-                            : 'secondary'
+                              ? 'destructive'
+                              : 'secondary'
                         }
                       >
                         {t(`job${exportJob.status.charAt(0) + exportJob.status.slice(1).toLowerCase()}`, language)}
@@ -1484,8 +1527,8 @@ const statusColors: Record<OrderStatus, string> = {
                           importJob.status === 'SUCCESS'
                             ? 'default'
                             : importJob.status === 'FAILED'
-                            ? 'destructive'
-                            : 'secondary'
+                              ? 'destructive'
+                              : 'secondary'
                         }
                       >
                         {t(`job${importJob.status.charAt(0) + importJob.status.slice(1).toLowerCase()}`, language)}

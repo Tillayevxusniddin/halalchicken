@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/context"
 import { t } from "@/lib/i18n"
 import { Product, Category, Supplier } from "@/lib/types"
 import { ProductGrid, ProductFilters } from "@/components/products"
+import { getProducts, getCategories, getSuppliers } from "@/lib/api"
 
 export function Products() {
   const { language } = useAuth()
@@ -10,7 +11,7 @@ export function Products() {
   const [categories, setCategories] = useState<Category[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
-  
+
   // Filter state
   const [selectedCategory, setSelectedCategory] = useState<number>()
   const [selectedSupplier, setSelectedSupplier] = useState<number>()
@@ -20,20 +21,13 @@ export function Products() {
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const [categoriesRes, suppliersRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_ORIGIN}/api/categories/`),
-          fetch(`${import.meta.env.VITE_API_ORIGIN}/api/suppliers/`),
+        const [categoriesData, suppliersData] = await Promise.all([
+          getCategories({}),
+          getSuppliers({}),
         ])
-        
-        if (categoriesRes.ok) {
-          const data = await categoriesRes.json()
-          setCategories(data.results || data)
-        }
-        
-        if (suppliersRes.ok) {
-          const data = await suppliersRes.json()
-          setSuppliers(data.results || data)
-        }
+
+        setCategories(categoriesData.results || categoriesData)
+        setSuppliers(suppliersData.results || suppliersData)
       } catch (error) {
         console.error("Failed to fetch filters:", error)
       }
@@ -47,19 +41,13 @@ export function Products() {
     const fetchProducts = async () => {
       setLoading(true)
       try {
-        const params = new URLSearchParams()
-        if (selectedCategory) params.append("category", selectedCategory.toString())
-        if (selectedSupplier) params.append("supplier", selectedSupplier.toString())
-        if (searchQuery) params.append("search", searchQuery)
+        const params: any = {}
+        if (selectedCategory) params.category = selectedCategory
+        if (selectedSupplier) params.supplier = selectedSupplier
+        if (searchQuery) params.search = searchQuery
 
-        const response = await fetch(
-          `${import.meta.env.VITE_API_ORIGIN}/api/products/?${params.toString()}`
-        )
-
-        if (response.ok) {
-          const data = await response.json()
-          setProducts(data.results || data)
-        }
+        const data = await getProducts(params)
+        setProducts(data.results || data)
       } catch (error) {
         console.error("Failed to fetch products:", error)
       } finally {

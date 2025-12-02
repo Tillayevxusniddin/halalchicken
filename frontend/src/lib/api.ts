@@ -154,3 +154,81 @@ export async function adminTelegramContact(orderId: number) {
     telegram_link: string
   }
 }
+
+// Products
+export async function getProducts(params?: Record<string, any>) {
+  const { data } = await api.get('/products/', { params })
+  return data
+}
+
+export async function createProduct(formData: FormData) {
+  const { data } = await api.post('/products/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export async function updateProduct(id: number, formData: FormData) {
+  const { data } = await api.patch(`/products/${id}/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export async function deleteProduct(id: number) {
+  const { data } = await api.delete(`/products/${id}/`)
+  return data
+}
+
+// Categories
+export async function getCategories(params?: Record<string, any>) {
+  const { data } = await api.get('/categories/', { params })
+  return data
+}
+
+export async function createCategory(payload: Record<string, any>) {
+  const { data } = await api.post('/categories/', payload)
+  return data
+}
+
+export async function updateCategory(id: number, payload: Record<string, any>) {
+  const { data } = await api.patch(`/categories/${id}/`, payload)
+  return data
+}
+
+export async function deleteCategory(id: number) {
+  const { data } = await api.delete(`/categories/${id}/`)
+  return data
+}
+
+// Suppliers
+export async function getSuppliers(params?: Record<string, any>) {
+  const { data } = await api.get('/suppliers/', { params })
+  return data
+}
+
+export async function createSupplier(payload: Record<string, any>) {
+  const { data } = await api.post('/suppliers/', payload)
+  return data
+}
+
+export async function updateSupplier(id: number, payload: Record<string, any>) {
+  const { data } = await api.patch(`/suppliers/${id}/`, payload)
+  return data
+}
+
+export async function deleteSupplier(id: number) {
+  const { data } = await api.delete(`/suppliers/${id}/`)
+  return data
+}
+
+// Users (Admin)
+export async function getUsers(params?: Record<string, any>) {
+  const { data } = await api.get('/admin/users/', { params })
+  return data
+}
+
+export async function updateUserRole(id: number, role: string) {
+  const { data } = await api.post(`/admin/users/${id}/role/`, { role })
+  return data
+}

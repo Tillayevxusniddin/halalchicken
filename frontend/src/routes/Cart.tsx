@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Trash2, ShoppingBag, Plus, Minus } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
-
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || ''
+import { createOrder, telegramTemplate } from '@/lib/api'
 
 export function Cart() {
   const { language, user } = useAuth()
@@ -40,41 +39,16 @@ export function Cart() {
 
     try {
       // Create order
-      const token = localStorage.getItem('access_token')
-      const sessionId = localStorage.getItem('session_id')
-      
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      }
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      } else if (sessionId) {
-        headers['X-Session-ID'] = sessionId
-      }
+      const order = await createOrder()
+      await fetchCart()
 
-      const response = await fetch(`${API_ORIGIN}/api/orders/`, {
-        method: 'POST',
-        headers,
-      })
+      // Get telegram message template
+      const { text, order_number } = await telegramTemplate(order.id)
+      setContactInfo({ text, orderNumber: order_number })
+      shareOnTelegram(text)
+      console.info('Order placed:', order_number)
 
-      if (response.ok) {
-        const order = await response.json()
-        await fetchCart()
-
-        const templateResponse = await fetch(
-          `${API_ORIGIN}/api/telegram/message-template/?orderId=${order.id}`,
-          { headers }
-        )
-
-        if (templateResponse.ok) {
-          const { text, order_number } = await templateResponse.json()
-          setContactInfo({ text, orderNumber: order_number })
-          shareOnTelegram(text)
-          console.info('Order placed:', order_number)
-        }
-        navigate('/orders')
-      }
+      navigate('/orders')
     } catch (error) {
       console.error('Checkout failed:', error)
     }
@@ -120,7 +94,7 @@ export function Cart() {
   return (
     <div className="container py-8">
       <h1 className="text-3xl font-bold mb-8">{t('shoppingCart', language)}</h1>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
@@ -212,9 +186,9 @@ export function Cart() {
                       {itemCount.toFixed(2)} {t('kg', language)}
                     </span>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>{t('noPricesShown', language)}</span>
                   </div>
