@@ -24,8 +24,8 @@ export interface Product {
   id: number
   name_uz: string
   name_ru: string
-  category: number
-  supplier: number
+  category: number | Category
+  supplier: number | Supplier
   image_url: string
   description: string
   status: boolean

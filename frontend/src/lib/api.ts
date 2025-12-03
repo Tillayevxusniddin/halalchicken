@@ -1,15 +1,20 @@
-import axios, { AxiosRequestHeaders } from 'axios'
+import axios, { AxiosRequestHeaders, AxiosError } from 'axios'
 import { getAccessToken } from './token-storage'
 
 const defaultOrigin =
-  typeof window !== 'undefined' && window.location?.origin ? window.location.origin : ''
-const configuredOrigin = (import.meta.env.VITE_API_ORIGIN || '').trim().replace(/\/+$/, '')
+  typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin
+    : ''
+const configuredOrigin = (import.meta.env.VITE_API_ORIGIN || '')
+  .trim()
+  .replace(/\/+$/, '')
 const apiOrigin = configuredOrigin || defaultOrigin
 
 export const api = axios.create({
   baseURL: apiOrigin ? `${apiOrigin}/api` : '/api',
 })
 
+// Request interceptor to add auth token
 api.interceptors.request.use((config) => {
   const token = getAccessToken()
   if (token) {
@@ -18,6 +23,39 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+// Response interceptor for automatic retry on network errors
+interface RetryConfig {
+  _retryCount?: number
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const config = error.config as RetryConfig & typeof error.config
+
+    // Only retry on network errors or 5xx server errors
+    const shouldRetry =
+      !error.response || // Network error
+      (error.response.status >= 500 && error.response.status < 600) // Server error
+
+    // Check if we haven't exceeded retry limit
+    const retryCount = config?._retryCount || 0
+    const maxRetries = 2
+
+    if (shouldRetry && retryCount < maxRetries && config) {
+      config._retryCount = retryCount + 1
+
+      // Exponential backoff: 1s, 2s
+      const delayMs = 1000 * Math.pow(2, retryCount)
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+
+      return api.request(config)
+    }
+
+    return Promise.reject(error)
+  },
+)
 
 export type Health = { status: 'ok' }
 
@@ -46,11 +84,29 @@ export async function updateMe(payload: Record<string, unknown>) {
   return data
 }
 
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+) {
+  const { data } = await api.post('/auth/change-password/', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  })
+  return data
+}
+
+export async function deleteAccount(password: string) {
+  const { data } = await api.post('/auth/delete-account/', {
+    password: password,
+  })
+  return data
+}
+
 export async function getCart() {
   const { data } = await api.get('/cart/')
   return data as {
     id: number
-    items: Array<{ id: number; product: any; quantity: number }>
+    items: Array<{ id: number; product: unknown; quantity: number }>
   }
 }
 
@@ -78,7 +134,7 @@ export async function reorderOrder(id: number) {
   const { data } = await api.post(`/orders/${id}/reorder/`)
   return data as {
     id: number
-    items: Array<{ product: any; quantity: number }>
+    items: Array<{ product: unknown; quantity: number }>
   }
 }
 
@@ -163,7 +219,9 @@ export async function downloadTemplate() {
 }
 
 // Products
-export async function getProducts(params?: Record<string, any>) {
+export async function getProducts(
+  params?: Record<string, string | number | boolean>,
+) {
   const { data } = await api.get('/products/', { params })
   return data
 }
@@ -188,17 +246,24 @@ export async function deleteProduct(id: number) {
 }
 
 // Categories
-export async function getCategories(params?: Record<string, any>) {
+export async function getCategories(
+  params?: Record<string, string | number | boolean>,
+) {
   const { data } = await api.get('/categories/', { params })
   return data
 }
 
-export async function createCategory(payload: Record<string, any>) {
+export async function createCategory(
+  payload: Record<string, string | number | boolean>,
+) {
   const { data } = await api.post('/categories/', payload)
   return data
 }
 
-export async function updateCategory(id: number, payload: Record<string, any>) {
+export async function updateCategory(
+  id: number,
+  payload: Record<string, string | number | boolean>,
+) {
   const { data } = await api.patch(`/categories/${id}/`, payload)
   return data
 }
@@ -209,17 +274,24 @@ export async function deleteCategory(id: number) {
 }
 
 // Suppliers
-export async function getSuppliers(params?: Record<string, any>) {
+export async function getSuppliers(
+  params?: Record<string, string | number | boolean>,
+) {
   const { data } = await api.get('/suppliers/', { params })
   return data
 }
 
-export async function createSupplier(payload: Record<string, any>) {
+export async function createSupplier(
+  payload: Record<string, string | number | boolean>,
+) {
   const { data } = await api.post('/suppliers/', payload)
   return data
 }
 
-export async function updateSupplier(id: number, payload: Record<string, any>) {
+export async function updateSupplier(
+  id: number,
+  payload: Record<string, string | number | boolean>,
+) {
   const { data } = await api.patch(`/suppliers/${id}/`, payload)
   return data
 }
@@ -230,7 +302,9 @@ export async function deleteSupplier(id: number) {
 }
 
 // Users (Admin)
-export async function getUsers(params?: Record<string, any>) {
+export async function getUsers(
+  params?: Record<string, string | number | boolean>,
+) {
   const { data } = await api.get('/admin/users/', { params })
   return data
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { useAuth, useOrders } from "@/lib/context"
+import { useNavigate, Link } from "react-router-dom"
+import { useAuth, useOrders, useCart } from "@/lib/context"
 import { t } from "@/lib/i18n"
 import { OrderStatus } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { ShoppingBag, Package, Clock, Send } from "lucide-react"
 import { formatDateTime } from "@/lib/utils"
 import { telegramTemplate } from "@/lib/api"
+import { useToast } from "@/lib/toast"
 
 const statusColors: Record<OrderStatus, string> = {
   Received: "bg-blue-500",
@@ -19,8 +20,11 @@ const statusColors: Record<OrderStatus, string> = {
 export function Orders() {
   const { language, user } = useAuth()
   const { orders, isLoading, reorder } = useOrders()
+  const { fetchCart } = useCart()
   const navigate = useNavigate()
+  const toast = useToast()
   const [contactingId, setContactingId] = useState<number | null>(null)
+  const [reorderingId, setReorderingId] = useState<number | null>(null)
 
   useEffect(() => {
     if (!user) {
@@ -31,11 +35,22 @@ export function Orders() {
   }, [user, navigate])
 
   const handleReorder = async (orderId: number) => {
+    setReorderingId(orderId)
     try {
       await reorder(orderId)
-      navigate("/cart")
+      await fetchCart()
+      toast.push({
+        message: t("itemsAddedToCart", language) || "Items added to cart!",
+        type: "success"
+      })
     } catch (error) {
       console.error("Failed to reorder:", error)
+      toast.push({
+        message: t("reorderFailed", language) || "Failed to add items to cart",
+        type: "error"
+      })
+    } finally {
+      setReorderingId(null)
     }
   }
 
@@ -138,10 +153,21 @@ export function Orders() {
 
               {/* Actions */}
               <div className="flex gap-2 pt-2 flex-wrap">
-                <Button variant="outline" onClick={() => handleReorder(order.id)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleReorder(order.id)}
+                  disabled={reorderingId === order.id}
+                >
                   <ShoppingBag className="mr-2 h-4 w-4" />
-                  {t("reorder", language)}
+                  {reorderingId === order.id ? t("loading", language) : t("reorder", language)}
                 </Button>
+                {reorderingId === order.id && (
+                  <Link to="/cart">
+                    <Button variant="default" size="sm">
+                      {t("viewCart", language) || "View Cart"}
+                    </Button>
+                  </Link>
+                )}
                 <Button
                   variant="secondary"
                   onClick={() => handleContact(order.id)}

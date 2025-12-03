@@ -49,6 +49,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/admin/shared/ConfirmDialog'
 
 interface AdminStats {
   today_orders: number
@@ -94,6 +95,12 @@ export function Admin() {
   const [roleChangeLoading, setRoleChangeLoading] = useState<Record<string, boolean>>({})
   const [roleChangeError, setRoleChangeError] = useState<string | null>(null)
   const [roleChangeSuccess, setRoleChangeSuccess] = useState<string | null>(null)
+  
+  // CRUD operation loading states
+  const [productSubmitLoading, setProductSubmitLoading] = useState(false)
+  const [categorySubmitLoading, setCategorySubmitLoading] = useState(false)
+  const [supplierSubmitLoading, setSupplierSubmitLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   // Dialog states
   const [productDialogOpen, setProductDialogOpen] = useState(false)
@@ -106,13 +113,26 @@ export function Admin() {
   // Form states
   const [productForm, setProductForm] = useState<Partial<Product>>({})
   const [productImageFile, setProductImageFile] = useState<File | null>(null)
+  const [productImagePreview, setProductImagePreview] = useState<string | null>(null)
   const [categoryForm, setCategoryForm] = useState<Partial<Category>>({})
   const [supplierForm, setSupplierForm] = useState<Partial<Supplier>>({})
 
   // Search/filter states
+  const [orderSearch, setOrderSearch] = useState('')
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
   const [productSearch, setProductSearch] = useState('')
   const [categorySearch, setCategorySearch] = useState('')
   const [supplierSearch, setSupplierSearch] = useState('')
+
+  // Confirmation dialog states
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean
+    type: 'product' | 'category' | 'supplier' | null
+    id: number | null
+    name: string
+  }>({ open: false, type: null, id: null, name: '' })
+
 
   // Pagination states
   const [ordersPage, setOrdersPage] = useState(1)
@@ -141,6 +161,18 @@ export function Admin() {
       const params: any = { page }
       if (statusFilter !== 'ALL') {
         params.status = statusFilter
+      }
+      if (orderSearch.trim()) {
+        params.search = orderSearch.trim()
+      }
+      if (customerSearch.trim()) {
+        params.customer_search = customerSearch.trim()
+      }
+      if (dateRange.start) {
+        params.start_date = dateRange.start
+      }
+      if (dateRange.end) {
+        params.end_date = dateRange.end
       }
       const data = await listOrders(params)
       setOrders(data.results || [])
@@ -226,20 +258,22 @@ export function Admin() {
   const handleStatusChange = async (orderId: number, newStatus: string) => {
     try {
       await setOrderStatus(orderId, newStatus)
-      await fetchAdminData()
-    } catch (error) {
+      await fetchOrders(ordersPage)
+    } catch (error: any) {
       console.error('Failed to update status:', error)
+      const errorMsg = error.response?.data?.detail || 'Failed to update order status'
+      alert(errorMsg)
     }
   }
 
-  const handleRoleChange = async (userId: number, newRole: string) => {
+  const handleRoleChange = async (userId: string, newRole: string) => {
     // @ts-ignore
     setRoleChangeLoading(prev => ({ ...prev, [userId]: true }))
     setRoleChangeError(null)
     setRoleChangeSuccess(null)
 
     try {
-      const data = await updateUserRole(userId, newRole)
+      const data = await updateUserRole(Number(userId), newRole)
       // @ts-ignore
       setRoleChangeSuccess(data.message || t('roleChangedSuccess', language))
       await fetchAdminData()
@@ -258,7 +292,13 @@ export function Admin() {
     try {
       const job = await exportOrders({})
       const jobId = job.job_id || (job as any).id
-      const normalizedJob = { ...job, id: jobId }
+      const normalizedJob: AsyncJob = {
+        id: jobId,
+        type: (job as any).type || 'export_orders',
+        status: job.status as 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED',
+        result_url: (job as any).result_url,
+        error: (job as any).error,
+      }
       setExportJob(normalizedJob)
       if (jobId) {
         pollJobStatus(jobId, setExportJob)
@@ -272,7 +312,13 @@ export function Admin() {
     try {
       const job = await importProducts(file)
       const jobId = job.job_id || (job as any).id
-      const normalizedJob = { ...job, id: jobId }
+      const normalizedJob: AsyncJob = {
+        id: jobId,
+        type: (job as any).type || 'import_products',
+        status: job.status as 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED',
+        result_url: (job as any).result_url,
+        error: (job as any).error,
+      }
       setImportJob(normalizedJob)
       if (jobId) {
         pollJobStatus(jobId, setImportJob)
@@ -317,7 +363,15 @@ export function Admin() {
   useEffect(() => {
     setOrdersPage(1)
     fetchOrders(1)
-  }, [statusFilter])
+  }, [statusFilter, dateRange])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setOrdersPage(1)
+      fetchOrders(1)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [orderSearch, customerSearch])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -369,6 +423,7 @@ export function Admin() {
 
   // CRUD handlers for Products
   const handleCreateProduct = async () => {
+    setProductSubmitLoading(true)
     try {
       const formData = new FormData()
 
@@ -388,12 +443,16 @@ export function Admin() {
       setProductImageFile(null)
     } catch (error) {
       console.error('Error creating product:', error)
+      throw error
+    } finally {
+      setProductSubmitLoading(false)
     }
   }
 
   const handleUpdateProduct = async () => {
     if (!editingProduct) return
 
+    setProductSubmitLoading(true)
     try {
       const formData = new FormData()
 
@@ -414,6 +473,9 @@ export function Admin() {
       setProductImageFile(null)
     } catch (error) {
       console.error('Error updating product:', error)
+      throw error
+    } finally {
+      setProductSubmitLoading(false)
     }
   }
 
@@ -427,6 +489,7 @@ export function Admin() {
         status: product.status,
       })
       setProductImageFile(null)
+      setProductImagePreview(null)
     } else {
       setEditingProduct(null)
       setProductForm({
@@ -436,6 +499,7 @@ export function Admin() {
         status: true,
       })
       setProductImageFile(null)
+      setProductImagePreview(null)
     }
     setProductDialogOpen(true)
   }
@@ -456,18 +520,18 @@ export function Admin() {
     }
   }
 
-  const handleDeleteProduct = async (id: number) => {
-    try {
-      await deleteProduct(id)
-      await fetchProducts(productsPage)
-    } catch (error) {
-      console.error('Failed to delete product:', error)
-      alert('Failed to delete product')
-    }
+  const handleDeleteProduct = (id: number, name: string) => {
+    setDeleteConfirm({
+      open: true,
+      type: 'product',
+      id,
+      name,
+    })
   }
 
   // CRUD handlers for Categories
   const handleCreateCategory = async (data: Partial<Category>) => {
+    setCategorySubmitLoading(true)
     try {
       await createCategory(data)
       await fetchCategories(categoriesPage)
@@ -476,10 +540,13 @@ export function Admin() {
     } catch (error) {
       console.error('Failed to create category:', error)
       throw error
+    } finally {
+      setCategorySubmitLoading(false)
     }
   }
 
   const handleUpdateCategory = async (id: number, data: Partial<Category>) => {
+    setCategorySubmitLoading(true)
     try {
       await updateCategory(id, data)
       await fetchCategories(categoriesPage)
@@ -489,6 +556,8 @@ export function Admin() {
     } catch (error) {
       console.error('Failed to update category:', error)
       throw error
+    } finally {
+      setCategorySubmitLoading(false)
     }
   }
 
@@ -529,18 +598,18 @@ export function Admin() {
     }
   }
 
-  const handleDeleteCategory = async (id: number) => {
-    try {
-      await deleteCategory(id)
-      await fetchAdminData()
-    } catch (error) {
-      console.error('Failed to delete category:', error)
-      alert('Failed to delete category')
-    }
+  const handleDeleteCategory = (id: number, name: string) => {
+    setDeleteConfirm({
+      open: true,
+      type: 'category',
+      id,
+      name,
+    })
   }
 
   // CRUD handlers for Suppliers
   const handleCreateSupplier = async (data: Partial<Supplier>) => {
+    setSupplierSubmitLoading(true)
     try {
       await createSupplier(data)
       await fetchAdminData()
@@ -549,10 +618,13 @@ export function Admin() {
     } catch (error) {
       console.error('Failed to create supplier:', error)
       throw error
+    } finally {
+      setSupplierSubmitLoading(false)
     }
   }
 
   const handleUpdateSupplier = async (id: number, data: Partial<Supplier>) => {
+    setSupplierSubmitLoading(true)
     try {
       await updateSupplier(id, data)
       await fetchAdminData()
@@ -562,6 +634,8 @@ export function Admin() {
     } catch (error) {
       console.error('Failed to update supplier:', error)
       throw error
+    } finally {
+      setSupplierSubmitLoading(false)
     }
   }
 
@@ -610,13 +684,39 @@ export function Admin() {
 
   const filteredSuppliers = suppliers
 
-  const handleDeleteSupplier = async (id: number) => {
+  const handleDeleteSupplier = (id: number, name: string) => {
+    setDeleteConfirm({
+      open: true,
+      type: 'supplier',
+      id,
+      name,
+    })
+  }
+
+  // Unified delete confirmation handler
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm.id || !deleteConfirm.type) return
+
+    setDeleteLoading(true)
     try {
-      await deleteSupplier(id)
-      await fetchAdminData()
-    } catch (error) {
-      console.error('Failed to delete supplier:', error)
-      alert('Failed to delete supplier')
+      if (deleteConfirm.type === 'product') {
+        await deleteProduct(deleteConfirm.id)
+        await fetchProducts(productsPage)
+      } else if (deleteConfirm.type === 'category') {
+        await deleteCategory(deleteConfirm.id)
+        await fetchCategories(categoriesPage)
+      } else if (deleteConfirm.type === 'supplier') {
+        await deleteSupplier(deleteConfirm.id)
+        await fetchSuppliers(suppliersPage)
+      }
+      setDeleteConfirm({ open: false, type: null, id: null, name: '' })
+    } catch (error: any) {
+      console.error(`Failed to delete ${deleteConfirm.type}:`, error)
+      const errorMsg = error.response?.data?.detail || `Failed to delete ${deleteConfirm.type}`
+      alert(errorMsg)
+      setDeleteConfirm({ open: false, type: null, id: null, name: '' })
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -680,7 +780,7 @@ export function Admin() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b overflow-x-auto">
+      <div className="flex gap-2 mb-6 overflow-x-auto border-b">
         <button
           onClick={() => setActiveTab('orders')}
           className={`px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'orders'
@@ -744,24 +844,85 @@ export function Admin() {
         <Card>
           <CardHeader>
             <CardTitle>{t('allOrders', language)}</CardTitle>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                variant={statusFilter === 'ALL' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setStatusFilter('ALL')}
-              >
-                {t('allStatuses', language)}
-              </Button>
-              {statusTimeline.map((status) => (
+            
+            {/* Search and Filter Controls */}
+            <div className="mt-4 space-y-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <Label htmlFor="order-search" className="mb-1 text-sm">
+                    {t('searchByOrderNumber', language) || 'Search by Order #'}
+                  </Label>
+                  <Input
+                    id="order-search"
+                    type="text"
+                    placeholder="#20250916-001"
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="customer-search" className="mb-1 text-sm">
+                    {t('searchByCustomer', language) || 'Search by Customer'}
+                  </Label>
+                  <Input
+                    id="customer-search"
+                    type="text"
+                    placeholder={t('nameOrPhone', language) || 'Name or phone'}
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1 text-sm">
+                    {t('dateRange', language) || 'Date Range'}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="date"
+                      value={dateRange.start}
+                      onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                      className="w-full"
+                    />
+                    <Input
+                      type="date"
+                      value={dateRange.end}
+                      onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                      className="w-full"
+                    />
+                  </div>
+                  {(dateRange.start || dateRange.end) && (
+                    <button
+                      onClick={() => setDateRange({ start: '', end: '' })}
+                      className="mt-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Clear dates
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              {/* Status Filter Buttons */}
+              <div className="flex flex-wrap gap-2">
                 <Button
-                  key={status}
-                  variant={statusFilter === status ? 'default' : 'outline'}
+                  variant={statusFilter === 'ALL' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setStatusFilter(status)}
+                  onClick={() => setStatusFilter('ALL')}
                 >
-                  {t(status, language)}
+                  {t('allStatuses', language)}
                 </Button>
-              ))}
+                {statusTimeline.map((status) => (
+                  <Button
+                    key={status}
+                    variant={statusFilter === status ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStatusFilter(status)}
+                  >
+                    {t(status, language)}
+                  </Button>
+                ))}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -790,7 +951,7 @@ export function Admin() {
                           size="sm"
                           onClick={() => handleContactCustomer(order.id)}
                         >
-                          <Send className="mr-2 h-4 w-4" />
+                          <Send className="w-4 h-4 mr-2" />
                           {t('contactCustomer', language)}
                         </Button>
                         <Badge className={statusColors[order.status] || 'bg-gray-100 text-gray-800'}>
@@ -819,7 +980,7 @@ export function Admin() {
                         </DropdownMenu>
                       </div>
                     </div>
-                    <div className="text-sm space-y-3">
+                    <div className="space-y-3 text-sm">
                       <div className="flex flex-wrap items-center gap-2">
                         {statusTimeline.map((step) => {
                           const currentIndex = statusTimeline.indexOf(order.status)
@@ -831,7 +992,7 @@ export function Admin() {
                               className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${reached ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
                                 }`}
                             >
-                              <span className="h-2 w-2 rounded-full bg-current" />
+                              <span className="w-2 h-2 bg-current rounded-full" />
                               {t(step, language)}
                             </div>
                           )
@@ -872,7 +1033,7 @@ export function Admin() {
               <div className="flex items-center justify-between">
                 <CardTitle>{t('products', language)}</CardTitle>
                 <Button onClick={() => handleOpenProductDialog()}>
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="w-4 h-4 mr-2" />
                   {t('add', language)} {t('products', language)}
                 </Button>
               </div>
@@ -897,17 +1058,19 @@ export function Admin() {
               ) : (
                 <div className="space-y-4">
                   {filteredProducts.map((product) => {
-                    const categoryName = categories.find(c => c.id === product.category)
-                    const supplierName = suppliers.find(s => s.id === product.supplier)
+                    const categoryId = typeof product.category === 'object' ? product.category.id : product.category
+                    const supplierId = typeof product.supplier === 'object' ? product.supplier.id : product.supplier
+                    const categoryName = typeof product.category === 'object' ? product.category : categories.find(c => c.id === categoryId)
+                    const supplierName = typeof product.supplier === 'object' ? product.supplier : suppliers.find(s => s.id === supplierId)
                     return (
-                      <div key={product.id} className="p-4 border rounded-lg flex items-center justify-between">
+                      <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex-1">
                           <div className="font-medium">{categoryName ? (language === 'uz' ? categoryName.name_uz : categoryName.name_ru) : 'Unknown Category'}</div>
                           <div className="text-sm text-muted-foreground">
-                            {t('supplier', language)}: {supplierName ? supplierName.name : product.supplier}
+                            {t('supplier', language)}: {supplierName ? supplierName.name : `Supplier #${supplierId}`}
                           </div>
                           {product.description && (
-                            <div className="text-sm text-muted-foreground mt-1">{product.description}</div>
+                            <div className="mt-1 text-sm text-muted-foreground">{product.description}</div>
                           )}
                           <Badge variant={product.status ? 'default' : 'secondary'} className="mt-2">
                             {product.status ? t('inStock', language) : t('outOfStock', language)}
@@ -915,15 +1078,14 @@ export function Admin() {
                         </div>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" onClick={() => handleOpenProductDialog(product)}>
-                            <Edit className="h-4 w-4" />
+                            <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => {
-                            const message = t('confirmDelete', language) || 'Are you sure you want to delete this item?'
-                            if (confirm(message)) {
-                              handleDeleteProduct(product.id)
-                            }
-                          }}>
-                            <Trash2 className="h-4 w-4" />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteProduct(product.id, language === 'uz' ? product.name_uz : product.name_ru)}
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
@@ -959,8 +1121,8 @@ export function Admin() {
                     <Label htmlFor="category">{t('category', language)} *</Label>
                     <select
                       id="category"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      value={productForm.category || ''}
+                      className="flex w-full h-10 px-3 py-2 text-sm border rounded-md border-input bg-background ring-offset-background"
+                      value={typeof productForm.category === 'object' ? productForm.category.id : (productForm.category || '')}
                       onChange={(e) => setProductForm({ ...productForm, category: Number(e.target.value) })}
                       required
                     >
@@ -976,8 +1138,8 @@ export function Admin() {
                     <Label htmlFor="supplier">{t('supplier', language)} *</Label>
                     <select
                       id="supplier"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      value={productForm.supplier || ''}
+                      className="flex w-full h-10 px-3 py-2 text-sm border rounded-md border-input bg-background ring-offset-background"
+                      value={typeof productForm.supplier === 'object' ? productForm.supplier.id : (productForm.supplier || '')}
                       onChange={(e) => setProductForm({ ...productForm, supplier: Number(e.target.value) })}
                       required
                     >
@@ -998,12 +1160,49 @@ export function Admin() {
                     accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0]
-                      if (file) setProductImageFile(file)
+                      if (file) {
+                        setProductImageFile(file)
+                        // Create preview URL
+                        const reader = new FileReader()
+                        reader.onloadend = () => {
+                          setProductImagePreview(reader.result as string)
+                        }
+                        reader.readAsDataURL(file)
+                      }
                     }}
                   />
+                  {/* Image Preview */}
+                  {productImagePreview && (
+                    <div className="mt-2">
+                      <img 
+                        src={productImagePreview} 
+                        alt="Preview" 
+                        className="object-contain h-32 max-w-full border border-gray-200 rounded"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProductImageFile(null)
+                          setProductImagePreview(null)
+                          // Clear file input
+                          const fileInput = document.getElementById('image_file') as HTMLInputElement
+                          if (fileInput) fileInput.value = ''
+                        }}
+                        className="mt-1 text-xs text-red-600 hover:text-red-800"
+                      >
+                        Remove image
+                      </button>
+                    </div>
+                  )}
+                  {/* Current image for editing */}
                   {editingProduct && editingProduct.image_url && !productImageFile && (
-                    <div className="text-xs text-muted-foreground">
-                      {t('currentImage', language)}: <a href={editingProduct.image_url} target="_blank" rel="noreferrer" className="underline">{t('view', language)}</a>
+                    <div className="mt-2">
+                      <div className="mb-1 text-xs text-muted-foreground">{t('currentImage', language)}:</div>
+                      <img 
+                        src={editingProduct.image_url} 
+                        alt="Current" 
+                        className="object-contain h-32 max-w-full border border-gray-200 rounded"
+                      />
                     </div>
                   )}
                 </div>
@@ -1022,18 +1221,21 @@ export function Admin() {
                     id="status"
                     checked={productForm.status ?? true}
                     onChange={(e) => setProductForm({ ...productForm, status: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="w-4 h-4 border-gray-300 rounded"
                   />
                   <Label htmlFor="status" className="cursor-pointer">{t('status', language)}: {productForm.status ? t('active', language) : t('inactive', language)}</Label>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setProductDialogOpen(false)}>
+                <Button variant="outline" onClick={() => {
+                  setProductDialogOpen(false)
+                  setProductImagePreview(null)
+                }} disabled={productSubmitLoading}>
                   {t('cancel', language)}
                 </Button>
-                <Button onClick={handleSubmitProduct}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {t('save', language)}
+                <Button onClick={handleSubmitProduct} disabled={productSubmitLoading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {productSubmitLoading ? t('loading', language) : t('save', language)}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1049,7 +1251,7 @@ export function Admin() {
               <div className="flex items-center justify-between">
                 <CardTitle>{t('categories', language)}</CardTitle>
                 <Button onClick={() => handleOpenCategoryDialog()}>
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="w-4 h-4 mr-2" />
                   {t('add', language)} {t('categories', language)}
                 </Button>
               </div>
@@ -1070,10 +1272,10 @@ export function Admin() {
               ) : (
                 <div className="space-y-4">
                   {filteredCategories.map((category) => (
-                    <div key={category.id} className="p-4 border rounded-lg flex items-center justify-between">
+                    <div key={category.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <div className="font-medium">{language === 'uz' ? category.name_uz : category.name_ru}</div>
-                        <div className="text-sm text-muted-foreground mt-1">
+                        <div className="mt-1 text-sm text-muted-foreground">
                           {t('order', language) || 'Order'}: {category.order}
                         </div>
                         <Badge variant={category.status ? 'default' : 'secondary'} className="mt-2">
@@ -1082,15 +1284,14 @@ export function Admin() {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleOpenCategoryDialog(category)}>
-                          <Edit className="h-4 w-4" />
+                          <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => {
-                          const message = t('confirmDelete', language) || 'Are you sure you want to delete this item?'
-                          if (confirm(message)) {
-                            handleDeleteCategory(category.id)
-                          }
-                        }}>
-                          <Trash2 className="h-4 w-4" />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteCategory(category.id, language === 'uz' ? category.name_uz : category.name_ru)}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
@@ -1155,18 +1356,18 @@ export function Admin() {
                     id="cat_status"
                     checked={categoryForm.status ?? true}
                     onChange={(e) => setCategoryForm({ ...categoryForm, status: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="w-4 h-4 border-gray-300 rounded"
                   />
                   <Label htmlFor="cat_status" className="cursor-pointer">{t('status', language)}: {categoryForm.status ? t('active', language) : t('inactive', language)}</Label>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
+                <Button variant="outline" onClick={() => setCategoryDialogOpen(false)} disabled={categorySubmitLoading}>
                   {t('cancel', language)}
                 </Button>
-                <Button onClick={handleSubmitCategory}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {t('save', language)}
+                <Button onClick={handleSubmitCategory} disabled={categorySubmitLoading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {categorySubmitLoading ? t('loading', language) : t('save', language)}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1182,7 +1383,7 @@ export function Admin() {
               <div className="flex items-center justify-between">
                 <CardTitle>{t('suppliers', language)}</CardTitle>
                 <Button onClick={() => handleOpenSupplierDialog()}>
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="w-4 h-4 mr-2" />
                   {t('add', language)} {t('suppliers', language)}
                 </Button>
               </div>
@@ -1203,7 +1404,7 @@ export function Admin() {
               ) : (
                 <div className="space-y-4">
                   {filteredSuppliers.map((supplier) => (
-                    <div key={supplier.id} className="p-4 border rounded-lg flex items-center justify-between">
+                    <div key={supplier.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <div className="font-medium">{supplier.name}</div>
                         {supplier.phone && (
@@ -1218,15 +1419,14 @@ export function Admin() {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleOpenSupplierDialog(supplier)}>
-                          <Edit className="h-4 w-4" />
+                          <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => {
-                          const message = t('confirmDelete', language) || 'Are you sure you want to delete this item?'
-                          if (confirm(message)) {
-                            handleDeleteSupplier(supplier.id)
-                          }
-                        }}>
-                          <Trash2 className="h-4 w-4" />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteSupplier(supplier.id, supplier.name)}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
@@ -1288,18 +1488,18 @@ export function Admin() {
                     id="sup_status"
                     checked={supplierForm.status ?? true}
                     onChange={(e) => setSupplierForm({ ...supplierForm, status: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="w-4 h-4 border-gray-300 rounded"
                   />
                   <Label htmlFor="sup_status" className="cursor-pointer">{t('status', language)}: {supplierForm.status ? t('active', language) : t('inactive', language)}</Label>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setSupplierDialogOpen(false)}>
+                <Button variant="outline" onClick={() => setSupplierDialogOpen(false)} disabled={supplierSubmitLoading}>
                   {t('cancel', language)}
                 </Button>
-                <Button onClick={handleSubmitSupplier}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {t('save', language)}
+                <Button onClick={handleSubmitSupplier} disabled={supplierSubmitLoading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {supplierSubmitLoading ? t('loading', language) : t('save', language)}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1316,12 +1516,12 @@ export function Admin() {
           <CardContent>
             {/* Success/Error Messages */}
             {roleChangeSuccess && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+              <div className="p-3 mb-4 text-sm text-green-800 border border-green-200 rounded-lg bg-green-50">
                 {roleChangeSuccess}
               </div>
             )}
             {roleChangeError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+              <div className="p-3 mb-4 text-sm text-red-800 border border-red-200 rounded-lg bg-red-50">
                 {roleChangeError}
               </div>
             )}
@@ -1399,19 +1599,19 @@ export function Admin() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Download className="h-5 w-5" />
+                <Download className="w-5 h-5" />
                 {t('exportOrders', language)}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <Button onClick={handleExportOrders} disabled={exportJob?.status === 'RUNNING'} className="w-full">
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
                   {exportJob?.status === 'RUNNING' ? t('exporting', language) : t('exportOrders', language)}
                 </Button>
 
                 {exportJob && (
-                  <div className="p-4 border rounded-lg space-y-2">
+                  <div className="p-4 space-y-2 border rounded-lg">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{t('status', language)}:</span>
                       <Badge
@@ -1432,7 +1632,7 @@ export function Admin() {
                         download
                         className="flex items-center gap-2 text-sm text-primary hover:underline"
                       >
-                        <Download className="h-4 w-4" />
+                        <Download className="w-4 h-4" />
                         {t('download', language)}
                       </a>
                     )}
@@ -1448,7 +1648,7 @@ export function Admin() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
+                <Upload className="w-5 h-5" />
                 {t('importProducts', language)}
               </CardTitle>
             </CardHeader>
@@ -1459,7 +1659,7 @@ export function Admin() {
                   onClick={handleDownloadTemplate}
                   className="w-full"
                 >
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="w-4 h-4 mr-2" />
                   {t('downloadTemplate', language)}
                 </Button>
                 <Input
@@ -1471,7 +1671,7 @@ export function Admin() {
                   }}
                   disabled={importJob?.status === 'RUNNING'}
                 />
-                <div className="text-sm text-muted-foreground space-y-1">
+                <div className="space-y-1 text-sm text-muted-foreground">
                   <p>{t('importInstructions', language)}</p>
                   <ul className="text-xs list-disc list-inside">
                     {importColumns.map((col) => (
@@ -1484,7 +1684,7 @@ export function Admin() {
                 </div>
 
                 {importJob && (
-                  <div className="p-4 border rounded-lg space-y-2">
+                  <div className="p-4 space-y-2 border rounded-lg">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{t('status', language)}:</span>
                       <Badge
@@ -1509,6 +1709,18 @@ export function Admin() {
           </Card>
         </div>
       )}
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        title={`Delete ${deleteConfirm.type === 'product' ? 'Product' : deleteConfirm.type === 'category' ? 'Category' : 'Supplier'}`}
+        description={`Are you sure you want to delete "${deleteConfirm.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        loading={deleteLoading}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm({ open: false, type: null, id: null, name: '' })}
+      />
     </div>
   )
 }

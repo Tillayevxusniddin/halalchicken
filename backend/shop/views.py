@@ -19,6 +19,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from .models import AsyncJob, Cart, CartItem, Category, Order, OrderItem, OrderNumberSequence, Product, SessionCart, SessionCartItem
 from .permissions import IsAdmin, IsAdminOrReadOnly, IsAuthenticated, IsSuperAdmin
+from rest_framework import permissions as drf_permissions
 from .serializers import (
     AdminOrderSerializer,
     CartItemSerializer,
@@ -58,6 +59,86 @@ class MeView(APIView):
 
     def put(self, request):
         return self.patch(request)
+
+
+class ChangePasswordView(APIView):
+    """Change password for authenticated user."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from django.contrib.auth.password_validation import validate_password
+        from rest_framework.exceptions import ValidationError
+
+        current_password = request.data.get("current_password")
+        new_password = request.data.get("new_password")
+
+        if not current_password or not new_password:
+            return Response(
+                {"detail": "Both current_password and new_password are required."},
+                status=400
+            )
+
+        # Verify current password
+        if not request.user.check_password(current_password):
+            return Response(
+                {"detail": "Current password is incorrect."},
+                status=400
+            )
+
+        # Validate new password
+        try:
+            validate_password(new_password, request.user)
+        except ValidationError as e:
+            return Response(
+                {"detail": list(e.messages)},
+                status=400
+            )
+
+        # Set new password
+        request.user.set_password(new_password)
+        request.user.save(update_fields=["password"])
+
+        return Response({"message": "Password changed successfully."})
+
+
+class DeleteAccountView(APIView):
+    """
+    Allow authenticated users to delete their own account.
+    Requires password confirmation for security.
+    """
+    permission_classes = [drf_permissions.IsAuthenticated]
+
+    def post(self, request):
+        password = request.data.get("password")
+        
+        if not password:
+            return Response(
+                {"detail": "Password is required to delete account."},
+                status=400
+            )
+        
+        # Verify password
+        user = request.user
+        if not user.check_password(password):
+            return Response(
+                {"detail": "Invalid password."},
+                status=400
+            )
+        
+        # Prevent admin/superadmin from deleting their accounts via this endpoint
+        if user.role in ['ADMIN', 'SUPERADMIN']:
+            return Response(
+                {"detail": "Admin accounts cannot be deleted through this method. Contact a superadmin."},
+                status=403
+            )
+        
+        # Delete the user account
+        user.delete()
+        
+        return Response(
+            {"message": "Account deleted successfully."},
+            status=200
+        )
 
 
 class CategoryViewSet(viewsets.ModelViewSet):

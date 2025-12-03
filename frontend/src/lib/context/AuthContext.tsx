@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User } from "../types"
 import { Language } from "../i18n"
 import { clearAuthTokens, getAccessToken, setAuthTokens } from "../token-storage"
+import { useIdleTimeout } from "../hooks/useIdleTimeout"
+import { SessionTimeoutDialog } from "@/components/shared/SessionTimeoutDialog"
 
 interface AuthContextType {
   user: User | null
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [language, setLanguageState] = useState<Language>("uz")
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false)
 
   useEffect(() => {
     // Load user and language from localStorage on mount
@@ -160,6 +163,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     localStorage.removeItem("user")
     clearAuthTokens()
+    setShowTimeoutWarning(false)
+  }
+
+  // Session timeout hook - only active when user is logged in
+  const { isWarning, stayActive } = useIdleTimeout({
+    timeout: 30 * 60 * 1000, // 30 minutes
+    warningTime: 2 * 60 * 1000, // 2 minutes warning
+    onIdle: () => {
+      if (user) {
+        logout()
+      }
+    },
+    onWarning: () => {
+      if (user) {
+        setShowTimeoutWarning(true)
+      }
+    },
+  })
+
+  const handleStayLoggedIn = () => {
+    setShowTimeoutWarning(false)
+    stayActive()
   }
 
   const setLanguage = (lang: Language) => {
@@ -186,6 +211,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      {user && (
+        <SessionTimeoutDialog
+          open={showTimeoutWarning}
+          onStayLoggedIn={handleStayLoggedIn}
+          remainingSeconds={120} // 2 minutes
+          language={language}
+        />
+      )}
     </AuthContext.Provider>
   )
 }

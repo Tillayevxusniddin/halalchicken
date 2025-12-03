@@ -14,6 +14,8 @@ from .views import (
     AdminJobStatusView,
     CartViewSet,
     CategoryViewSet,
+    ChangePasswordView,
+    DeleteAccountView,
     MeView,
     OrderViewSet,
     ProductViewSet,
@@ -38,6 +40,8 @@ urlpatterns = [
     path("auth/me/", MeView.as_view(), name="me"),
     path("auth/login/", AuthTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/refresh/", AuthTokenRefreshView.as_view(), name="token_refresh"),
+    path("auth/change-password/", ChangePasswordView.as_view(), name="change_password"),
+    path("auth/delete-account/", DeleteAccountView.as_view(), name="delete_account"),
     path("telegram/message-template/", telegram_message_template, name="telegram_template"),
     # Admin async jobs
     path("admin/orders/<int:order_id>/telegram-contact/", admin_telegram_contact, name="admin_telegram_contact"),
