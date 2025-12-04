@@ -62,6 +62,10 @@ export function Orders() {
       window.open(`https://t.me/share/url?url=&text=${encoded}`, "_blank")
     } catch (error) {
       console.error("Failed to generate contact message:", error)
+      toast.push({
+        message: t("errorGeneratingMessage", language) || "Failed to generate contact message",
+        type: "error"
+      })
     } finally {
       setContactingId(null)
     }
@@ -138,6 +142,10 @@ export function Orders() {
                       src={item.product.image_url || "https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=60&h=60&fit=crop"}
                       alt={language === "uz" ? item.product.name_uz : item.product.name_ru}
                       className="h-12 w-12 object-cover rounded"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.src = "https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=60&h=60&fit=crop"
+                      }}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">

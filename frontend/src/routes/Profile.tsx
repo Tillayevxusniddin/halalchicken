@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/context'
+import { useToast } from '@/lib/toast'
 import { t } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +22,7 @@ import {
 
 export function Profile() {
   const { language, user, updateUser, logout } = useAuth()
+  const { push: toast } = useToast()
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
     fio: '',
@@ -65,10 +67,14 @@ export function Profile() {
     try {
       const updatedUser = await updateMe(formData)
       updateUser(updatedUser)
-      setMessage({ type: 'success', text: t('success', language) })
+      const successMsg = t('success', language) || 'Profile updated successfully'
+      setMessage({ type: 'success', text: successMsg })
+      toast({ message: successMsg, type: 'success' })
     } catch (error) {
       console.error('Failed to update profile:', error)
-      setMessage({ type: 'error', text: t('error', language) })
+      const errorMsg = t('error', language) || 'Failed to update profile'
+      setMessage({ type: 'error', text: errorMsg })
+      toast({ message: errorMsg, type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -83,26 +89,34 @@ export function Profile() {
 
     // Validate passwords match
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordMessage({ type: 'error', text: 'New passwords do not match' })
+      const errorMsg = t('passwordsDoNotMatch', language) || 'New passwords do not match'
+      setPasswordMessage({ type: 'error', text: errorMsg })
+      toast({ message: errorMsg, type: 'error' })
       setPasswordLoading(false)
       return
     }
 
     // Validate password length
     if (passwordData.newPassword.length < 8) {
-      setPasswordMessage({ type: 'error', text: 'Password must be at least 8 characters long' })
+      const errorMsg = t('passwordTooShort', language) || 'Password must be at least 8 characters long'
+      setPasswordMessage({ type: 'error', text: errorMsg })
+      toast({ message: errorMsg, type: 'error' })
       setPasswordLoading(false)
       return
     }
 
     try {
       await changePassword(passwordData.currentPassword, passwordData.newPassword)
-      setPasswordMessage({ type: 'success', text: 'Password changed successfully' })
+      const successMsg = t('passwordChangedSuccess', language) || 'Password changed successfully'
+      setPasswordMessage({ type: 'success', text: successMsg })
+      toast({ message: successMsg, type: 'success' })
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch (error: any) {
       console.error('Failed to change password:', error)
-      const errorMsg = error.response?.data?.detail || 'Failed to change password'
-      setPasswordMessage({ type: 'error', text: Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg })
+      const errorMsg = error.response?.data?.detail || t('errorChangingPassword', language) || 'Failed to change password'
+      const errorText = Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg
+      setPasswordMessage({ type: 'error', text: errorText })
+      toast({ message: errorText, type: 'error' })
     } finally {
       setPasswordLoading(false)
     }
@@ -110,7 +124,9 @@ export function Profile() {
 
   const handleDeleteAccount = async () => {
     if (!deletePassword) {
-      setDeleteError(language === 'uz' ? 'Parol talab qilinadi' : 'Требуется пароль')
+      const errorMsg = language === 'uz' ? 'Parol talab qilinadi' : 'Требуется пароль'
+      setDeleteError(errorMsg)
+      toast({ message: errorMsg, type: 'error' })
       return
     }
 
@@ -119,6 +135,8 @@ export function Profile() {
 
     try {
       await deleteAccount(deletePassword)
+      const successMsg = t('accountDeleted', language) || 'Account deleted successfully'
+      toast({ message: successMsg, type: 'success' })
       // Account deleted successfully - logout
       logout()
       navigate('/login')
@@ -126,6 +144,7 @@ export function Profile() {
       console.error('Failed to delete account:', error)
       const errorMsg = error.response?.data?.detail || (language === 'uz' ? 'Hisobni oʻchirib boʻlmadi' : 'Не удалось удалить аккаунт')
       setDeleteError(errorMsg)
+      toast({ message: errorMsg, type: 'error' })
     } finally {
       setDeleteLoading(false)
     }

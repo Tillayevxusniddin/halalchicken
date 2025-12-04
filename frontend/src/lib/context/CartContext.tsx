@@ -121,6 +121,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    // Optimistic update - update UI immediately
+    if (cart) {
+      const updatedItems = cart.items.map(item => 
+        item.product.id === productId 
+          ? { ...item, quantity: normalizeQuantity(quantity) }
+          : item
+      )
+      setCart({ ...cart, items: updatedItems })
+    }
+
     try {
       const token = localStorage.getItem("access_token")
       const sessionId = token ? null : getOrCreateSessionId()
@@ -131,11 +141,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ product_id: productId, quantity: normalizeQuantity(quantity) }),
       })
 
-      if (response.ok) {
+      if (!response.ok) {
+        // Revert on failure
         await fetchCart()
       }
     } catch (error) {
       console.error("Failed to update quantity:", error)
+      // Revert on error
+      await fetchCart()
       throw error
     }
   }

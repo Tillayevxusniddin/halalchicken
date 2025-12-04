@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/context'
+import { useToast } from '@/lib/toast'
 import { t } from '@/lib/i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -80,6 +81,7 @@ interface AdminOrder extends Omit<Order, 'user'> {
 
 export function Admin() {
   const { language, user } = useAuth()
+  const { push: toast } = useToast()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'categories' | 'suppliers' | 'users' | 'excel'>('orders')
   const [stats, setStats] = useState<AdminStats | null>(null)
@@ -156,7 +158,7 @@ export function Admin() {
     fetchAdminData()
   }, [user, navigate])
 
-  const fetchOrders = async (page = 1) => {
+  const fetchOrders = useCallback(async (page = 1) => {
     try {
       const params: any = { page }
       if (statusFilter !== 'ALL') {
@@ -179,10 +181,11 @@ export function Admin() {
       setOrdersTotal(data.count || 0)
     } catch (error) {
       console.error('Failed to fetch orders:', error)
+      toast({ message: t('errorFetchingOrders', language) || 'Failed to fetch orders', type: 'error' })
     }
-  }
+  }, [statusFilter, orderSearch, customerSearch, dateRange, language, toast])
 
-  const fetchProducts = async (page = 1) => {
+  const fetchProducts = useCallback(async (page = 1) => {
     try {
       const params: any = { page }
       if (productSearch) params.search = productSearch
@@ -192,10 +195,11 @@ export function Admin() {
       setProductsTotal(data.count || 0)
     } catch (error) {
       console.error('Failed to fetch products:', error)
+      toast({ message: t('errorFetchingProducts', language) || 'Failed to fetch products', type: 'error' })
     }
-  }
+  }, [productSearch, language, toast])
 
-  const fetchCategories = async (page = 1) => {
+  const fetchCategories = useCallback(async (page = 1) => {
     try {
       const params: any = { page }
       if (categorySearch) params.search = categorySearch
@@ -205,10 +209,11 @@ export function Admin() {
       setCategoriesTotal(data.count || 0)
     } catch (error) {
       console.error('Failed to fetch categories:', error)
+      toast({ message: t('errorFetchingCategories', language) || 'Failed to fetch categories', type: 'error' })
     }
-  }
+  }, [categorySearch, language, toast])
 
-  const fetchSuppliers = async (page = 1) => {
+  const fetchSuppliers = useCallback(async (page = 1) => {
     try {
       const params: any = { page }
       if (supplierSearch) params.search = supplierSearch
@@ -218,18 +223,20 @@ export function Admin() {
       setSuppliersTotal(data.count || 0)
     } catch (error) {
       console.error('Failed to fetch suppliers:', error)
+      toast({ message: t('errorFetchingSuppliers', language) || 'Failed to fetch suppliers', type: 'error' })
     }
-  }
+  }, [supplierSearch, language, toast])
 
-  const fetchUsers = async (page = 1) => {
+  const fetchUsers = useCallback(async (page = 1) => {
     try {
       const data = await getUsers({ page })
       setUsers(data.results || [])
       setUsersTotal(data.count || 0)
     } catch (error) {
       console.error('Failed to fetch users:', error)
+      toast({ message: t('errorFetchingUsers', language) || 'Failed to fetch users', type: 'error' })
     }
-  }
+  }, [language, toast])
 
   const fetchAdminData = async () => {
     try {
@@ -250,6 +257,7 @@ export function Admin() {
 
     } catch (error) {
       console.error('Failed to fetch admin data:', error)
+      toast({ message: t('errorFetchingAdminData', language) || 'Failed to fetch admin data', type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -259,10 +267,11 @@ export function Admin() {
     try {
       await setOrderStatus(orderId, newStatus)
       await fetchOrders(ordersPage)
+      toast({ message: t('orderStatusUpdated', language) || 'Order status updated successfully', type: 'success' })
     } catch (error: any) {
       console.error('Failed to update status:', error)
-      const errorMsg = error.response?.data?.detail || 'Failed to update order status'
-      alert(errorMsg)
+      const errorMsg = error.response?.data?.detail || t('errorUpdatingOrderStatus', language) || 'Failed to update order status'
+      toast({ message: errorMsg, type: 'error' })
     }
   }
 
@@ -275,12 +284,16 @@ export function Admin() {
     try {
       const data = await updateUserRole(Number(userId), newRole)
       // @ts-ignore
-      setRoleChangeSuccess(data.message || t('roleChangedSuccess', language))
+      const successMsg = data.message || t('roleChangedSuccess', language) || 'Role changed successfully'
+      setRoleChangeSuccess(successMsg)
+      toast({ message: successMsg, type: 'success' })
       await fetchAdminData()
       setTimeout(() => setRoleChangeSuccess(null), 3000)
     } catch (error: any) {
       console.error('Failed to change role:', error)
-      setRoleChangeError(error.response?.data?.detail || t('roleChangeFailed', language))
+      const errorMsg = error.response?.data?.detail || t('roleChangeFailed', language) || 'Failed to change role'
+      setRoleChangeError(errorMsg)
+      toast({ message: errorMsg, type: 'error' })
       setTimeout(() => setRoleChangeError(null), 5000)
     } finally {
       // @ts-ignore
@@ -303,8 +316,10 @@ export function Admin() {
       if (jobId) {
         pollJobStatus(jobId, setExportJob)
       }
+      toast({ message: t('exportStarted', language) || 'Export started', type: 'success' })
     } catch (error) {
       console.error('Failed to export orders:', error)
+      toast({ message: t('errorExportingOrders', language) || 'Failed to export orders', type: 'error' })
     }
   }
 
@@ -323,8 +338,10 @@ export function Admin() {
       if (jobId) {
         pollJobStatus(jobId, setImportJob)
       }
+      toast({ message: t('importStarted', language) || 'Import started', type: 'success' })
     } catch (error) {
       console.error('Failed to import products:', error)
+      toast({ message: t('errorImportingProducts', language) || 'Failed to import products', type: 'error' })
     }
   }
 
@@ -363,7 +380,7 @@ export function Admin() {
   useEffect(() => {
     setOrdersPage(1)
     fetchOrders(1)
-  }, [statusFilter, dateRange])
+  }, [fetchOrders])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -371,7 +388,7 @@ export function Admin() {
       fetchOrders(1)
     }, 500)
     return () => clearTimeout(timer)
-  }, [orderSearch, customerSearch])
+  }, [fetchOrders])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -379,7 +396,7 @@ export function Admin() {
       fetchProducts(1)
     }, 500)
     return () => clearTimeout(timer)
-  }, [productSearch])
+  }, [fetchProducts])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -387,7 +404,7 @@ export function Admin() {
       fetchCategories(1)
     }, 500)
     return () => clearTimeout(timer)
-  }, [categorySearch])
+  }, [fetchCategories])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -395,7 +412,7 @@ export function Admin() {
       fetchSuppliers(1)
     }, 500)
     return () => clearTimeout(timer)
-  }, [supplierSearch])
+  }, [fetchSuppliers])
 
   const handleDownloadTemplate = async () => {
     try {
@@ -418,6 +435,7 @@ export function Admin() {
       window.open(contactInfo.telegram_link, '_blank')
     } catch (error) {
       console.error('Failed to get Telegram contact info:', error)
+      toast({ message: t('errorGettingTelegramContact', language) || 'Failed to get Telegram contact', type: 'error' })
     }
   }
 
@@ -441,8 +459,10 @@ export function Admin() {
       fetchProducts(productsPage)
       setProductForm({})
       setProductImageFile(null)
+      toast({ message: t('productCreated', language) || 'Product created successfully', type: 'success' })
     } catch (error) {
       console.error('Error creating product:', error)
+      toast({ message: t('errorCreatingProduct', language) || 'Failed to create product', type: 'error' })
       throw error
     } finally {
       setProductSubmitLoading(false)
@@ -471,8 +491,10 @@ export function Admin() {
       fetchProducts(productsPage)
       setProductForm({})
       setProductImageFile(null)
+      toast({ message: t('productUpdated', language) || 'Product updated successfully', type: 'success' })
     } catch (error) {
       console.error('Error updating product:', error)
+      toast({ message: t('errorUpdatingProduct', language) || 'Failed to update product', type: 'error' })
       throw error
     } finally {
       setProductSubmitLoading(false)
@@ -537,8 +559,10 @@ export function Admin() {
       await fetchCategories(categoriesPage)
       setCategoryDialogOpen(false)
       setCategoryForm({})
+      toast({ message: t('categoryCreated', language) || 'Category created successfully', type: 'success' })
     } catch (error) {
       console.error('Failed to create category:', error)
+      toast({ message: t('errorCreatingCategory', language) || 'Failed to create category', type: 'error' })
       throw error
     } finally {
       setCategorySubmitLoading(false)
@@ -553,8 +577,10 @@ export function Admin() {
       setCategoryDialogOpen(false)
       setEditingCategory(null)
       setCategoryForm({})
+      toast({ message: t('categoryUpdated', language) || 'Category updated successfully', type: 'success' })
     } catch (error) {
       console.error('Failed to update category:', error)
+      toast({ message: t('errorUpdatingCategory', language) || 'Failed to update category', type: 'error' })
       throw error
     } finally {
       setCategorySubmitLoading(false)
@@ -615,8 +641,10 @@ export function Admin() {
       await fetchAdminData()
       setSupplierDialogOpen(false)
       setSupplierForm({})
+      toast({ message: t('supplierCreated', language) || 'Supplier created successfully', type: 'success' })
     } catch (error) {
       console.error('Failed to create supplier:', error)
+      toast({ message: t('errorCreatingSupplier', language) || 'Failed to create supplier', type: 'error' })
       throw error
     } finally {
       setSupplierSubmitLoading(false)
@@ -631,8 +659,10 @@ export function Admin() {
       setSupplierDialogOpen(false)
       setEditingSupplier(null)
       setSupplierForm({})
+      toast({ message: t('supplierUpdated', language) || 'Supplier updated successfully', type: 'success' })
     } catch (error) {
       console.error('Failed to update supplier:', error)
+      toast({ message: t('errorUpdatingSupplier', language) || 'Failed to update supplier', type: 'error' })
       throw error
     } finally {
       setSupplierSubmitLoading(false)
@@ -702,18 +732,21 @@ export function Admin() {
       if (deleteConfirm.type === 'product') {
         await deleteProduct(deleteConfirm.id)
         await fetchProducts(productsPage)
+        toast({ message: t('productDeleted', language) || 'Product deleted successfully', type: 'success' })
       } else if (deleteConfirm.type === 'category') {
         await deleteCategory(deleteConfirm.id)
         await fetchCategories(categoriesPage)
+        toast({ message: t('categoryDeleted', language) || 'Category deleted successfully', type: 'success' })
       } else if (deleteConfirm.type === 'supplier') {
         await deleteSupplier(deleteConfirm.id)
         await fetchSuppliers(suppliersPage)
+        toast({ message: t('supplierDeleted', language) || 'Supplier deleted successfully', type: 'success' })
       }
       setDeleteConfirm({ open: false, type: null, id: null, name: '' })
     } catch (error: any) {
       console.error(`Failed to delete ${deleteConfirm.type}:`, error)
       const errorMsg = error.response?.data?.detail || `Failed to delete ${deleteConfirm.type}`
-      alert(errorMsg)
+      toast({ message: errorMsg, type: 'error' })
       setDeleteConfirm({ open: false, type: null, id: null, name: '' })
     } finally {
       setDeleteLoading(false)

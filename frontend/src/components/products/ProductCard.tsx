@@ -1,5 +1,6 @@
 import { ShoppingCart } from "lucide-react"
 import { useAuth, useCart } from "@/lib/context"
+import { useToast } from "@/lib/toast"
 import { Product } from "@/lib/types"
 import { t } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
@@ -15,6 +16,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { language, user } = useAuth()
   const { addToCart } = useCart()
+  const { push: toast } = useToast()
   const [isAdding, setIsAdding] = useState(false)
   const [quantity, setQuantity] = useState("1.00")
 
@@ -24,8 +26,10 @@ export function ProductCard({ product }: ProductCardProps) {
       const parsed = parseFloat(quantity)
       const normalized = Number.isFinite(parsed) && parsed > 0 ? parsed : 1
       await addToCart(product, normalized)
+      toast({ message: t("addedToCart", language) || "Added to cart", type: "success" })
     } catch (error) {
       console.error("Failed to add to cart:", error)
+      toast({ message: t("errorAddingToCart", language) || "Failed to add to cart", type: "error" })
     } finally {
       setIsAdding(false)
     }
@@ -41,6 +45,10 @@ export function ProductCard({ product }: ProductCardProps) {
           src={product.image_url || "https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=400&h=400&fit=crop"}
           alt={productName}
           className="h-full w-full object-cover transition-transform group-hover:scale-105"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement
+            target.src = "https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=400&h=400&fit=crop"
+          }}
         />
         {!product.status && (
           <Badge variant="secondary" className="absolute top-2 right-2">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useCart } from '@/lib/context'
+import { useToast } from '@/lib/toast'
 import { t } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,6 +12,7 @@ import { createOrder, telegramTemplate } from '@/lib/api'
 export function Cart() {
   const { language, user } = useAuth()
   const { cart, updateQuantity, removeFromCart, fetchCart, itemCount, isLoading } = useCart()
+  const { push: toast } = useToast()
   const navigate = useNavigate()
   const [contactInfo, setContactInfo] = useState<{ text: string; orderNumber: string } | null>(null)
 
@@ -47,10 +49,12 @@ export function Cart() {
       setContactInfo({ text, orderNumber: order_number })
       shareOnTelegram(text)
       console.info('Order placed:', order_number)
-
+      
+      toast({ message: t('orderPlacedSuccess', language) || 'Order placed successfully!', type: 'success' })
       navigate('/orders')
     } catch (error) {
       console.error('Checkout failed:', error)
+      toast({ message: t('checkoutFailed', language) || 'Failed to place order', type: 'error' })
     }
   }
 
@@ -108,6 +112,10 @@ export function Cart() {
                       src={item.product.image_url || 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=150&h=150&fit=crop'}
                       alt={language === 'uz' ? item.product.name_uz : item.product.name_ru}
                       className="h-24 w-24 object-cover rounded-lg"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.src = 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=150&h=150&fit=crop'
+                      }}
                     />
                   </div>
 

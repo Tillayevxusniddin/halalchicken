@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/lib/context"
+import { useToast } from "@/lib/toast"
 import { t } from "@/lib/i18n"
 import { Product, Category, Supplier } from "@/lib/types"
 import { ProductGrid, ProductFilters } from "@/components/products"
@@ -8,6 +9,7 @@ import { getProducts, getCategories, getSuppliers } from "@/lib/api"
 
 export function Products() {
   const { language, user } = useAuth()
+  const { push: toast } = useToast()
   const navigate = useNavigate()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -39,11 +41,12 @@ export function Products() {
         setSuppliers(suppliersData.results || suppliersData)
       } catch (error) {
         console.error("Failed to fetch filters:", error)
+        toast({ message: t("errorFetchingFilters", language) || "Failed to load filters", type: "error" })
       }
     }
 
     fetchFilters()
-  }, [])
+  }, [language, toast])
 
   // Fetch products when filters change
   useEffect(() => {
@@ -59,13 +62,14 @@ export function Products() {
         setProducts(data.results || data)
       } catch (error) {
         console.error("Failed to fetch products:", error)
+        toast({ message: t("errorFetchingProducts", language) || "Failed to load products", type: "error" })
       } finally {
         setLoading(false)
       }
     }
 
     fetchProducts()
-  }, [selectedCategory, selectedSupplier, searchQuery])
+  }, [selectedCategory, selectedSupplier, searchQuery, language, toast])
 
   return (
     <div className="container py-8">

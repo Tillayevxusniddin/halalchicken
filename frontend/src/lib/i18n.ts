@@ -32,7 +32,8 @@ export const translations = {
     halalChickenDesc:
       "Ishonchli ta'minotchilardan to'g'ridan-to'g'ri halol tovuq mahsulotlari. Sifat va halollik kafolati.",
     browseProducts: "Mahsulotlarni Ko'rish",
-    contactWhatsApp: "WhatsApp orqali bog'lanish",
+    contactTelegram: "Telegram orqali bog'lanish",
+    contactWhatsApp: "Telegram orqali bog'lanish",
 
     // Trust Section
     whyChoose: "Nega Halal Chicken'ni Tanlash Kerak?",
@@ -80,7 +81,8 @@ export const translations = {
     contactMessageIntro:
       "Assalomu alaykum! Buyurtmangiz bo'yicha Telegram xabari tayyor. Admin bilan shu orqali bog'laning.",
     contactViaTelegram: "Telegram orqali bog'lanish",
-    placeOrderToContact: "Telegram xabarini olish uchun avval buyurtma yarating.",
+    placeOrderToContact:
+      'Telegram xabarini olish uchun avval buyurtma yarating.',
 
     // Orders
     orderHistory: 'Buyurtmalar Tarixi',
@@ -150,8 +152,8 @@ export const translations = {
     CUSTOMER: 'Mijoz',
     ADMIN: 'Admin',
     SUPERADMIN: 'SuperAdmin',
-    roleChangedSuccess: 'Rol muvaffaqiyatli o\'zgartirildi',
-    roleChangeFailed: 'Rolni o\'zgartirishda xatolik yuz berdi',
+    roleChangedSuccess: "Rol muvaffaqiyatli o'zgartirildi",
+    roleChangeFailed: "Rolni o'zgartirishda xatolik yuz berdi",
     currentUser: 'Siz',
 
     // Common
@@ -170,21 +172,21 @@ export const translations = {
     success: 'Muvaffaqiyat',
     pleaseFillRequired: "Iltimos, barcha majburiy maydonlarni to'ldiring",
     confirmDelete: "Haqiqatan ham ushbu elementni o'chirmoqchimisiz?",
-    nameUz: 'Nomi (O\'zbek)',
+    nameUz: "Nomi (O'zbek)",
     nameRu: 'Nomi (Rus)',
     selectCategory: 'Toifani tanlang',
     selectSupplier: "Ta'minotchini tanlang",
     imageUrl: 'Rasm URL',
     order: 'Tartib',
     noResults: 'Natijalar topilmadi',
-    addProductDesc: 'Katalogga yangi mahsulot qo\'shish',
-    editProductDesc: 'Mahsulot ma\'lumotlarini tahrirlash',
-    addCategoryDesc: 'Yangi toifa qo\'shish',
-    editCategoryDesc: 'Toifa ma\'lumotlarini tahrirlash',
+    addProductDesc: "Katalogga yangi mahsulot qo'shish",
+    editProductDesc: "Mahsulot ma'lumotlarini tahrirlash",
+    addCategoryDesc: "Yangi toifa qo'shish",
+    editCategoryDesc: "Toifa ma'lumotlarini tahrirlash",
     addSupplierDesc: "Yangi ta'minotchi qo'shish",
     editSupplierDesc: "Ta'minotchi ma'lumotlarini tahrirlash",
     pleaseLogin: 'Iltimos, tizimga kiring',
-    noPricesShown: 'Narxlar WhatsApp orqali muhokama qilinadi',
+    noPricesShown: 'Narxlar Telegram orqali muhokama qilinadi',
     personalInfo: "Shaxsiy ma'lumotlar",
     accessDenied: "Ruxsat yo'q. Faqat adminlar kirishi mumkin.",
     accountInfo: "Hisob ma'lumotlari",
@@ -227,7 +229,8 @@ export const translations = {
     halalChickenDesc:
       'Халяльные куриные продукты напрямую от надежных поставщиков. Гарантия качества и халяльности.',
     browseProducts: 'Просмотреть товары',
-    contactWhatsApp: 'Связаться через WhatsApp',
+    contactTelegram: 'Связаться через Telegram',
+    contactWhatsApp: 'Связаться через Telegram',
 
     // Trust Section
     whyChoose: 'Почему выбрать Halal Chicken?',
@@ -274,7 +277,8 @@ export const translations = {
     contactMessageIntro:
       'Здравствуйте! Готов текст сообщения для Telegram. Свяжитесь с администратором через него.',
     contactViaTelegram: 'Связаться через Telegram',
-    placeOrderToContact: 'Сначала оформите заказ, чтобы получить текст сообщения.',
+    placeOrderToContact:
+      'Сначала оформите заказ, чтобы получить текст сообщения.',
 
     // Orders
     orderHistory: 'История заказов',
@@ -375,7 +379,7 @@ export const translations = {
     addSupplierDesc: 'Добавить нового поставщика',
     editSupplierDesc: 'Редактировать информацию о поставщике',
     pleaseLogin: 'Пожалуйста, войдите в систему',
-    noPricesShown: 'Цены обсуждаются через WhatsApp',
+    noPricesShown: 'Цены обсуждаются через Telegram',
     personalInfo: 'Личная информация',
     accessDenied: 'Доступ запрещен. Только для администраторов.',
     accountInfo: 'Информация об аккаунте',

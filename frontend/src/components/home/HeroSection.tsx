@@ -35,12 +35,12 @@ export function HeroSection() {
               </Link>
               
               <a 
-                href="https://wa.me/998901234567"
+                href="https://t.me/halalchickenuz"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  {t("contactWhatsApp", language)}
+                  {t("contactTelegram", language)}
                 </Button>
               </a>
             </div>

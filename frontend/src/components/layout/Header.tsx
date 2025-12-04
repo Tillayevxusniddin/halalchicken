@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom"
-import { ShoppingCart, User, Menu, LogOut } from "lucide-react"
+import { ShoppingCart, User, Menu, LogOut, Sun, Moon } from "lucide-react"
 import { useAuth } from "@/lib/context"
 import { useCart } from "@/lib/context"
+import { useTheme } from "@/lib/context"
 import { t } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +17,7 @@ import { LanguageSwitcher } from "./LanguageSwitcher"
 export function Header() {
   const { user, language, logout } = useAuth()
   const { itemCount } = useCart()
+  const { theme, toggleTheme } = useTheme()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -59,6 +61,20 @@ export function Header() {
         {/* Right Side Actions */}
         <div className="flex items-center space-x-4">
           <LanguageSwitcher />
+          
+          {/* Theme Toggle - Always visible */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={toggleTheme}
+            title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+          >
+            {theme === "light" ? (
+              <Moon className="w-5 h-5" />
+            ) : (
+              <Sun className="w-5 h-5" />
+            )}
+          </Button>
 
           {/* Cart Button - Only show for customers, not admins */}
           {(!user || user.role === "CUSTOMER") && (
